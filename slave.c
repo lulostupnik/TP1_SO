@@ -5,4 +5,4 @@
 // notar que hashmd5 imprime el resultado junto con el nombre del archivo en la salida estandar
 // Si queremos que se imprima el PID del esclavo lo podemos imprimir justo antes de ejecutar hashmd5
 
-// Si el master cierra el pipe de escritura, el esclavo lee EOF y debe terminar
+// Si el master cierra el pipe de escritura, el read del esclavo retorna -1 creo y ahí podemos hacer que termine
