@@ -21,9 +21,14 @@ void read_path(char *buffer)
 
     int bytes_read;
 
-    if ((bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer) - 1)) > 0)
+    if ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1)) > 0)
     {
-        buffer[bytes_read] = '\0';
+        buffer[bytes_read - 1] = '\0';
+    }
+    else if (bytes_read == 0)
+    {
+        // EOF: El master cerró su pipe de escritura
+        exit(EXIT_SUCCESS);
     }
     else
     {
@@ -51,12 +56,12 @@ void print_md5(char *buffer)
             exit(EXIT_FAILURE);
         };
     }
-    return;
+    waitpid(pid, NULL, 0); // Espera a que el hijo termine
 }
 
 int main()
 {
-    setvbuf(stdout, NULL, _IONBF, 0); // Lo que mostro agodio en ejemplo
+    // setvbuf(stdout, NULL, _IONBF, 0); // Lo que mostro agodio en ejemplo
 
     char buffer[BUFFER_SIZE];
 
