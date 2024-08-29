@@ -53,7 +53,7 @@ int main() {
         // Print the processed line to stderr
         // Note: write expects a buffer length, not null-terminated string
         char msg[MAX_LINE_LENGTH + 20];
-        int msg_len = snprintf(msg, sizeof(msg), "Processed line: %s\n", line);
+        int msg_len = snprintf(msg, sizeof(msg), "%d (PID). Processed line: %s\n", getpid(), line);
         write(STDERR_FILENO, msg, msg_len);
     }
 

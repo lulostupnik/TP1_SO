@@ -48,21 +48,6 @@ static int send_file(int fd, char * buff){
 
 
 
-
-void printBuffer(const char *buf, size_t max_length) {
-    size_t i = 0;
-
-    while (i < max_length && buf[i] != EOF) { // Iterate up to max_length and stop at null byte
-         putchar(buf[i++]);    
-         if(buf[i++] == 0){
-            putchar('\n');
-         }
-    }
-}
-
-
-
-
 int main(int argc, char *argv[]){
     
     if(argc <= 1){
@@ -137,7 +122,6 @@ int main(int argc, char *argv[]){
         }
         send_file(childs_pipe_fds_write[i],null_buff);     
     }
-
   
     
 
