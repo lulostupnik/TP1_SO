@@ -25,6 +25,41 @@ static void pipe_(int pipefd[2]){
 }
 
 
+//@TODO ver si usar STRLEN o no
+//@TODO va el +1????????????????????
+//@TODO mando de a 1 file o de a varios
+static int send_file(int fd, char * buff){
+    int len = strlen(buff);
+    if(len >= MAX_FILE_PATH_LENGHT){
+        return -1;
+    }
+    buff[len] = '\n';
+
+   // size_t file_lenght = strlen(file_name);
+    if(write(fd, buff, len+1) == -1){
+        perror("write");
+        exit(EXIT_FAILURE);
+    }
+    
+    buff[len] = 0;
+}
+
+
+
+
+
+
+void printBuffer(const char *buf, size_t max_length) {
+    size_t i = 0;
+
+    while (i < max_length && buf[i] != EOF) { // Iterate up to max_length and stop at null byte
+         putchar(buf[i++]);    
+         if(buf[i++] == 0){
+            putchar('\n');
+         }
+    }
+}
+
 
 
 
@@ -80,6 +115,34 @@ int main(int argc, char *argv[]){
     //Ya tengo todos los SLAVES creados
 
 
+
+/*
+*
+*
+*       A PARTIR DE AHORA PUEDE TENER ERRORES : 
+*
+*/
+
+
+
+
+    
+    int files_sent = 0;
+    //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * CANT_SLAVES 
+    int files_in_buffer = 0;
+    char null_buff[] = {"\0"};
+    for(int i=0; i<CANT_SLAVES && files_sent+1 < argc ; i++){
+        for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
+            send_file(childs_pipe_fds_write[i],argv[1+files_sent++]);
+        }
+        send_file(childs_pipe_fds_write[i],null_buff);     
+    }
+
+  
+    
+
+
+
     //int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
     // int fd_slave = 1;
     // fd_set slaves_fd_set;
@@ -87,11 +150,6 @@ int main(int argc, char *argv[]){
     // int higher_fd_plus_1 = 1;
     // int fds_ready = select(higher_fd_plus_1, &slaves_fd_set, NULL, NULL, NULL);
 }
-
-static int send_file(int fd, char * file){
-
-}
-
 
 
 
