@@ -5,6 +5,9 @@
 
 //@TODO agregar checkeo de error en close y en dup2
 
+
+
+
 static void close_fd(int fd){
     if(close(fd) == -1){
         perror("close");
@@ -81,11 +84,17 @@ int main(int argc, char *argv[]){
 
         if (pid == 0) {  
             //Como hijo pongo mi STDOUT como el pipe en donde lee el padre y cierro ambos FDS
-            dup2(pipefd_parent_read[PIPE_WRITE], STDOUT_FILENO);
+            if(dup2(pipefd_parent_read[PIPE_WRITE], STDOUT_FILENO) == -1){
+                perror("dup");
+                exit(EXIT_FAILURE);
+            }
             close_both_fds(pipefd_parent_read);
 
             //Como hijo pongo mi STDIN en donde escribe el padre y cierro ambos FDS
-            dup2(pipefd_parent_write[PIPE_READ], STDIN_FILENO);
+            if(dup2(pipefd_parent_write[PIPE_READ], STDIN_FILENO)){
+                perror("dup");
+                exit(EXIT_FAILURE);
+            }
             close_both_fds(pipefd_parent_write);
 
             execve(pathname, argv_, envp_);
@@ -112,18 +121,21 @@ int main(int argc, char *argv[]){
 
 
     
-    int files_sent = 0;
+   
     //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * CANT_SLAVES 
+    //@TODO fijarse si va el files sent en ambos fors
+    int files_sent = 0;
     int files_in_buffer = 0;
     char null_buff[] = {"\0"};
     for(int i=0; i<CANT_SLAVES && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
+
             send_file(childs_pipe_fds_write[i],argv[1+files_sent++]);
         }
         send_file(childs_pipe_fds_write[i],null_buff);     
     }
   
-    
+
 
 
 
