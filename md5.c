@@ -1,7 +1,9 @@
 #include "md5.h"
+#include "slave.h"
 
 #define PIPE_WRITE 1
 #define PIPE_READ 0
+
 
 //@TODO agregar checkeo de error en close y en dup2
 
@@ -27,6 +29,18 @@ static void pipe_(int pipefd[2]){
     }
 }
 
+int count_newlines(const char *str) {
+    int count = 0;
+    while (*str) {
+        if (*str == '\n') {
+            count++;
+        }
+        str++;
+    }
+    return count;
+}
+
+
 
 //@TODO ver si usar STRLEN o no
 //@TODO va el +1????????????????????
@@ -37,7 +51,7 @@ static int send_file(int fd, char * buff){
         return -1;
     }
 
-    printf(RED"%s"WHITE "\n", buff);
+    //printf(RED"%s"WHITE "\n", buff);
 
     buff[len] = '\n';
 
@@ -52,7 +66,21 @@ static int send_file(int fd, char * buff){
 }
 
 
-
+//ESTA FUNCION DEBERIA SER PARA PONER EN SHARED MEMORY LO QUE ME MANDAN !
+//@TODO MEJORAR ESTA FUNCION.....
+static void read_aux(int fd, char * buffer){
+    
+    size_t bytes_read = read(fd, buffer, BUFFER_SIZE-1);
+    buffer[bytes_read] = 0;
+    if (bytes_read > 0) {
+        printf("Read %zd bytes from file descriptor %d\n", bytes_read, fd);            
+        printf("What i read: %s\n", buffer);           
+    } else if (bytes_read == 0) {
+        printf("End of file on file descriptor %d\n", fd);
+    } else {
+        perror("read error");
+    }
+}
 
 
 int main(int argc, char *argv[]){
@@ -67,18 +95,35 @@ int main(int argc, char *argv[]){
     char *const argv_[] = { "./slave2", NULL };  
     char *const envp_[] ={NULL};
 
-    int childs_pipe_fds_write[CANT_SLAVES] = {};
+    int childs_pipe_fds_write[CANT_SLAVES] = {}; // aca el master escribe
     int childs_pipe_fds_read[CANT_SLAVES] = {};
+    int highest_read_fd = 0;
+
     int pipefd_parent_write[2];
     int pipefd_parent_read[2];
+
+
+    fd_set readfds;
+    //FD_ZERO(&readfds);
 
     for(int i=0; i<CANT_SLAVES ; i++){
         
         pipe_(pipefd_parent_write);
         childs_pipe_fds_write[i] = pipefd_parent_write[PIPE_WRITE]; 
 
+
+
         pipe_(pipefd_parent_read); 
-        childs_pipe_fds_read[i] = pipefd_parent_read[PIPE_READ];
+        int read_fd = pipefd_parent_read[PIPE_READ];
+        childs_pipe_fds_read[i] = read_fd;
+        //Things for select function
+        if(pipefd_parent_read[PIPE_READ]){
+            highest_read_fd = read_fd;
+        }
+        //FD_SET(read_fd, &readfds);
+        // ...... //
+
+
 
         pid = fork();
         if (pid == -1) {
@@ -125,15 +170,50 @@ int main(int argc, char *argv[]){
     //@TODO fijarse si va el files sent en ambos fors
     int files_sent = 0;
     int files_in_buffer = 0;
+    
+    
+
     for(int i=0; i<CANT_SLAVES && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
             send_file(childs_pipe_fds_write[i],argv[1+files_sent++]);
         } 
     }
+    
 
+    // nfds  should  be  set  to  the  highest-numbered file descriptor in any of the three sets, plus 1.  The indicated file descriptors in each set are checked, up to this limit (but see BUGS).
+    
+    //Me quedan archivos para mandar
+    int fds_ready_cant = 0;
+    int files_read = 0;
+    char string_from_fd[BUFFER_SIZE];
+    //@TODO checkear si siempre hay que hacer el FD_SET si o SI. 
+    while (files_read < argc - 1) {
+        FD_ZERO(&readfds);
+        for(int i = 0; i < CANT_SLAVES; i++) {
+            FD_SET(childs_pipe_fds_read[i], &readfds);
+        }
+
+        // Call select
+        int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
+        if (fds_ready_cant == -1) {
+            perror("select error");
+            exit(EXIT_FAILURE);
+        }
+
+      
+        // Check which file descriptors are ready
+        for(int i = 0; i < CANT_SLAVES && fds_ready_cant > 0; i++) {
+            if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
+                read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. 
+                files_read += count_newlines(string_from_fd);
+                if(files_sent < argc -1){
+                    send_file(childs_pipe_fds_write[i], argv[1+files_sent++]);
+                }
+                fds_ready_cant--;
+            }
+        }
+}
  
-
-
 
     //int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
     // int fd_slave = 1;

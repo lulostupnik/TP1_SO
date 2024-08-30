@@ -41,10 +41,6 @@ int read_path(char *buffer)
     int bytes_read;
     if ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1)) > 0)
     {
-       // buffer[bytes_read] = '\0';
-
-        //fprintf(stderr, "Leí lo siguiente: %s\n", buffer);
-
         return bytes_read;
     }
     else
@@ -63,9 +59,54 @@ void chequear_path(char *path)
 
 void run_md5sum(char *path)
 {
-    char buffer[256];  
-    snprintf(buffer, sizeof(buffer), "Running md5sum on %s\n", path);
-    write(STDOUT_FILENO, buffer, strlen(buffer));
+    // @todo cambiar BUFFER_SIZE
+    // pipefd[0] es para leer
+    // pipefd[1] es para escribir
+    // Buffer para leer el resultado de md5sum
+
+    /*
+    char buffer[BUFFER_SIZE];
+    int pipefd[2];
+    */
+
+    /*
+    if (pipe(pipefd) == -1)
+    {
+        perror("pipe");
+        exit(EXIT_FAILURE);
+    }
+    */
+
+    int pid;
+    pid = fork();
+    if (pid == -1)
+    {
+        perror("error fork");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid == 0)
+    {
+        /*
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+        */
+        printf("%d ", getpid()); // @todo cambiar para que se imprima todo de una (usando pipe)
+        char *argv[] = {"/usr/local/bin/md5sum", path, NULL};
+
+        if (execve("/usr/local/bin/md5sum", argv, NULL) == -1)
+        {
+            perror("Error ejecutando md5sum");
+            exit(EXIT_FAILURE);
+        };
+    }
+
+    // close(pipefd[1]);
+
+    // snprintf(buffer, BUFFER_SIZE, "%d %s", getpid(), path);
+    waitpid(pid, NULL, 0); // Espera a que el hijo termine
+    // printf("Running md5sum on %s\n", path);
 }
 
 void consume_path(char *buffer, int *idxstart, int *idxend)
