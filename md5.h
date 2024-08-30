@@ -11,8 +11,8 @@
 
 //@TODO determinar si usar MAX_PATH_LENGHT o hacer un STRLEN en la funcion q hace el write
 
-    #define FILES_PER_SLAVE 3
-    #define CANT_SLAVES 5
+    #define FILES_PER_SLAVE 5
+    #define CANT_SLAVES 3
     #define MAX_FILE_PATH_LENGHT 100
 
 

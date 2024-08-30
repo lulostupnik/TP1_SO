@@ -41,9 +41,9 @@ int read_path(char *buffer)
     int bytes_read;
     if ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1)) > 0)
     {
-        // buffer[bytes_read] = '\0';
+       // buffer[bytes_read] = '\0';
 
-        fprintf(stderr, "Leí lo siguiente: %s\n", buffer);
+        //fprintf(stderr, "Leí lo siguiente: %s\n", buffer);
 
         return bytes_read;
     }
@@ -63,7 +63,7 @@ void chequear_path(char *path)
 
 void run_md5sum(char *path)
 {
-    fprintf(stderr, "Running md5sum on %s\n", path);
+    fprintf(stderr, "(%d) Running md5sum on %s\n", getpid(), path);
     //printf("Running md5sum on %s\n", path);
 }
 

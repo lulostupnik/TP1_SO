@@ -5,8 +5,8 @@
 
 //@TODO agregar checkeo de error en close y en dup2
 
-
-
+#define RED "\033[31m"
+#define WHITE "\033[37m"
 
 static void close_fd(int fd){
     if(close(fd) == -1){
@@ -36,6 +36,9 @@ static int send_file(int fd, char * buff){
     if(len >= MAX_FILE_PATH_LENGHT){
         return -1;
     }
+
+    printf(RED"%s"WHITE "\n", buff);
+
     buff[len] = '\n';
 
    // size_t file_lenght = strlen(file_name);
@@ -45,6 +48,7 @@ static int send_file(int fd, char * buff){
     }
     
     buff[len] = 0;
+
 }
 
 
@@ -117,21 +121,17 @@ int main(int argc, char *argv[]){
     *
     */
 
-
-
     //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * CANT_SLAVES 
     //@TODO fijarse si va el files sent en ambos fors
     int files_sent = 0;
     int files_in_buffer = 0;
-    char null_buff[] = {"\0"};
     for(int i=0; i<CANT_SLAVES && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
             send_file(childs_pipe_fds_write[i],argv[1+files_sent++]);
-        }
-       // send_file(childs_pipe_fds_write[i],null_buff);     
+        } 
     }
-  
 
+ 
 
 
 
