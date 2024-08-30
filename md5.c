@@ -204,7 +204,7 @@ int main(int argc, char *argv[]){
         // Check which file descriptors are ready
         for(int i = 0; i < CANT_SLAVES && fds_ready_cant > 0; i++) {
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
-                read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. 
+                read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. (no sacar que se ponga el file read en el buffer xq se me rompe todo )
                 files_read += count_newlines(string_from_fd);
                 if(files_sent < argc -1){
                     send_file(childs_pipe_fds_write[i], argv[1+files_sent++]);
