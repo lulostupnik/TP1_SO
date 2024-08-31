@@ -91,8 +91,8 @@ int main(int argc, char *argv[]){
     }
 
     pid_t pid;
-    const char *pathname = "./slave2";
-    char *const argv_[] = { "./slave2", NULL };  
+    const char *pathname = "./slave";
+    char *const argv_[] = { "./slave", NULL };  
     char *const envp_[] ={NULL};
 
     int childs_pipe_fds_write[CANT_SLAVES] = {}; // aca el master escribe
@@ -158,14 +158,6 @@ int main(int argc, char *argv[]){
     //Ya tengo todos los SLAVES creados
 
 
-
-    /*
-    *
-    *
-    *  A PARTIR DE AHORA PUEDE TENER ERRORES : 
-    *
-    */
-
     //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * CANT_SLAVES 
     //@TODO fijarse si va el files sent en ambos fors
     int files_sent = 0;
@@ -215,12 +207,6 @@ int main(int argc, char *argv[]){
 }
  
 
-    //int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
-    // int fd_slave = 1;
-    // fd_set slaves_fd_set;
-    // FD_SET(fd_slave, &slaves_fd_set);
-    // int higher_fd_plus_1 = 1;
-    // int fds_ready = select(higher_fd_plus_1, &slaves_fd_set, NULL, NULL, NULL);
 }
 
 
@@ -234,59 +220,4 @@ master(){
 
 
     }
-}
-
-// Use select to monitor the file descriptors
-    fd_set readfds;
-    int max_fd = 0;
-
-    // Determine the highest file descriptor
-    for (int i = 0; i < CANT_SLAVES; i++) {
-        if (childs_pipe_fds_read[i] > max_fd) {
-            max_fd = childs_pipe_fds_read[i];
-        }
-    }
-
-    // Monitoring the child pipes using select
-    while (1) {
-        FD_ZERO(&readfds);  // Initialize the file descriptor set
-
-        // Add the child's read ends to the readfds set
-        for (int i = 0; i < CANT_SLAVES; i++) {
-            FD_SET(childs_pipe_fds_read[i], &readfds);
-        }
-
-        // Wait for any of the file descriptors to be ready for reading
-        int activity = select(max_fd + 1, &readfds, NULL, NULL, NULL);
-        if (activity < 0 && errno != EINTR) {
-            perror("select");
-            exit(EXIT_FAILURE);
-        }
-
-        // Check which file descriptors are ready
-        for (int i = 0; i < CANT_SLAVES; i++) {
-            if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
-                char buffer[1024];
-                int bytes_read = read(childs_pipe_fds_read[i], buffer, sizeof(buffer) - 1);
-                if (bytes_read > 0) {
-                    buffer[bytes_read] = '\0';  // Null-terminate the string
-                    printf("Received from slave %d: %s", i, buffer);
-                } else if (bytes_read == 0) {
-                    // EOF: child has closed the pipe
-                    close_fd(childs_pipe_fds_read[i]);
-                } else {
-                    perror("read");
-                    exit(EXIT_FAILURE);
-                }
-            }
-        }
-    }
-    return 0;
-}
-
-
-*/
-
-/*
-
-*/
+}*/
