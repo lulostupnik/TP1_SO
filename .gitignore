@@ -54,3 +54,7 @@ dkms.conf
 
 .bash_history
 .viminfo
+
+md5
+slave
+a.out
