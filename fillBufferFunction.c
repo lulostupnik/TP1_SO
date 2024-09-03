@@ -4,7 +4,7 @@
 
 #define MAX_FILE_PATH_LENGHT 3
 #define FILES_PER_SLAVE 3
-#define CANT_SLAVE 5
+#define CANT_SLAVE 20
 #define DELIMITER '\n'
 
 //Returns: last index pos

@@ -131,7 +131,12 @@ int main(int argc, char *argv[]){
             exit(EXIT_FAILURE);
         }
 
-        if (pid == 0) {  
+        if (pid == 0) {
+            for(int j=0;j<i ; j++){
+                close_fd(childs_pipe_fds_read[j]);
+                close_fd(childs_pipe_fds_write[j]);  //En los hijos se quedaban abiertos los FDS.  Checkear
+            }
+
             //Como hijo pongo mi STDOUT como el pipe en donde lee el padre y cierro ambos FDS
             if(dup2(pipefd_parent_read[PIPE_WRITE], STDOUT_FILENO) == -1){
                 perror("dup");
