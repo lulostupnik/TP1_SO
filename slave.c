@@ -106,9 +106,6 @@ void run_md5sum(char *path)
         dup2(pipefd[1], STDOUT_FILENO);
         close(pipefd[1]);
         
-        
-    
-    
         char *argv[] = {"/bin/md5sum", path, NULL};
 
         if (execve("/bin/md5sum", argv, NULL) == -1)
@@ -131,7 +128,8 @@ void run_md5sum(char *path)
 
     close(pipefd[0]);
     waitpid(pid, NULL, 0); // Espera a que el hijo termine   @TODO cambiar el 0 por una constante. 
-    write(STDOUT_FILENO, buffer, bytes_read + buffer_dim + 1); //@TODO checkear las cuentas.     
+   // write(STDOUT_FILENO, buffer, bytes_read + buffer_dim + 1); //@TODO checkear las cuentas.     
+    printf("%s", buffer);
 }
 
 void consume_path(char *buffer, int *idxstart, int *idxend)
@@ -159,6 +157,7 @@ void consume_path(char *buffer, int *idxstart, int *idxend)
 
 int main(int argc, char const *argv[])
 {
+    setvbuf(stdout, NULL, _IONBF, 0);  // Averiguar bien, pero ahora se puede hacer printf
     char buffer[BUFFER_SIZE];
     int idxstart = 0;
     int idxend = 0;
