@@ -50,7 +50,7 @@ int read_path(char *buffer)
     else
     {
         perror("Pipe de lectura cerrado");
-        exit(EXIT_FAILURE);
+        exit(EXIT_SUCCESS);  //@TODO lo cambie a esto no se si es asi
     }
 }
 

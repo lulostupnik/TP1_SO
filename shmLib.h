@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <semaphore.h>
+
 
 #define SHM_SIZE 4096
 #define END_OF_READ '\n'
