@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
+#include "shmLib.h"
 
 #define BUFFER_SIZE 1024
 
@@ -25,7 +26,7 @@ void print_md5(char *buffer);
 int find_newline(char *buffer)
 {
     int i;
-    for (i = 0; buffer[i] != '\n' && buffer[i] != '\0'; i++)
+    for (i = 0; buffer[i] != '\n' && buffer[i] != END_OF_READ && buffer[i] != '\0'; i++)
     {
     }
 

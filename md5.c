@@ -65,7 +65,8 @@ static int send_file(int fd, char * buff){
 
     //printf(RED"%s"WHITE "\n", buff);
 
-    buff[len] = '\n';
+    buff[len] = END_OF_READ;
+    printf("My eof is %d\n", END_OF_READ );
 
    // size_t file_lenght = strlen(file_name);
     if(write(fd, buff, len+1) == -1){
@@ -103,13 +104,16 @@ int main(int argc, char *argv[]){
         perror("Error: No input files specified.\nUsage: ./md5 <file1> [file2 ... fileN]\n");
         return -1;
     }
-    setvbuf(stdout, NULL, _IONBF, 0);  // AVERIGUAR
+    if(setvbuf(stdout, NULL, _IONBF, 0)!= 0){
+        perror("buffer printf");
+        exit(EXIT_FAILURE);
+    }  // AVERIGUAR
 
    
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
-   
-    printf("%s", SHM_NAME);  //@TODO este es el buffer de llegada? o se refiere a otra cosa. 
-    sleep(2);
+    printf("%s\n", SHM_NAME);  //@TODO este es el buffer de llegada? o se refiere a otra cosa. 
+    sleep(5);
+    unlinkShm(shm); 
 
     int ans_fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
     if (ans_fd == -1) {
@@ -257,17 +261,14 @@ int main(int argc, char *argv[]){
     writeShm(EOF_BUFF, shm, 1);    
     fflush(file);
     fclose(file);
-    
-    closeShm(shm);
     close(ans_fd);
-
+    closeShm(shm);
 
 
     for(int i=0; i<CANT_SLAVES; i++){
         close_fd(childs_pipe_fds_read[i]);
         close_fd(childs_pipe_fds_write[i]);
-    } 
-   
+    }
     int childs_left = CANT_SLAVES;
     while(childs_left){
         if(wait(NULL) == -1){
@@ -276,8 +277,8 @@ int main(int argc, char *argv[]){
         childs_left--;
     }
 
-   // while(1); con el while podemos ver los estados
-    return 0;
+   //while(1);
+   return 0;
 }
 
 

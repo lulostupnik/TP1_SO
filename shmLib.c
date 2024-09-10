@@ -20,9 +20,9 @@ typedef struct sharedMemoryCDT {
     char *name;
     char *start;
     int fd;
-    int size;
-    int readOffset;
-    int writeOffset;
+    size_t size;
+    size_t readOffset;
+    size_t writeOffset;
     sem_t *dataAvailable;
     sem_t *mutex; //@TODO cambiar a tipo MUTEX?
 } sharedMemoryCDT;
@@ -40,17 +40,19 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
         exit(EXIT_FAILURE);
     }
 
+    //Puede retornar error pero es por si hay semaforos/shm los cuales no queremos abiertos.
     if (oflag & O_CREAT) {
         sem_unlink(SEM_NAME_DATA_AVAILABLE);
         sem_unlink(SEM_NAME_MUTEX);
         shm_unlink(name);
     }
-
+    
     shm->fd = shm_open(shm->name, oflag, mode);
     if (shm->fd == -1) {
         perror("shm_open failed");
         exit(EXIT_FAILURE);
     }
+
 
     if (oflag & O_CREAT) {
         if (ftruncate(shm->fd, SHM_SIZE) == -1) {
@@ -80,21 +82,28 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     shm->size = SHM_SIZE;
     shm->readOffset = 0;
     shm->writeOffset = 0;
+    
 
     return shm;
 }
 
 size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) {
     size_t bytesWritten = 0;
-
+   // char buffer2[1000];
     sem_wait(segment->mutex);
     while (bytesWritten < bufferSize && segment->writeOffset < SHM_SIZE) {
+  // buffer2[bytesWritten] = buffer[bytesWritten];
+        
         char byte = buffer[bytesWritten++];
         segment->start[segment->writeOffset++] = byte;
         if (byte == END_OF_READ) {
+            printf("BREAK write");
             break;
         }
     }
+    //buffer2[bytesWritten] = 0;
+    //printf("What i wrote %s", buffer2);
+   // printf("num: %d   %d", buffer2[bytesWritten-1], buffer2[bytesWritten]);
     sem_post(segment->mutex);
 
     sem_post(segment->dataAvailable);
@@ -104,18 +113,34 @@ size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) 
 
 size_t readShm(char *buffer, sharedMemoryADT segment, size_t bufferSize) {
     size_t bytesRead = 0;
+   
     sem_wait(segment->dataAvailable);
     sem_wait(segment->mutex);
+    segment->start[SHM_SIZE-1] = 0;
+   // printf("%s",  segment->start);
     while (bytesRead < bufferSize && segment->readOffset < SHM_SIZE) {
         char byte = segment->start[segment->readOffset++];
         buffer[bytesRead] = byte;
         if (byte == END_OF_READ) {
+            buffer[bytesRead] = 0;
+            printf("BREAK read");
             break;
         }
         bytesRead++;
     }
+    //printf("What i read %s cant bytes %ld\n", buffer, bytesRead);
     sem_post(segment->mutex);
     return bytesRead;
+}
+
+
+
+void unlinkShm(sharedMemoryADT segment){
+    //DEBERIA HABER UN FLAG EN LA SHARED MEMORY PORQUE SOLO HAY QUE UNLINKEAR UNA VEZ
+// Una de las dos veces da error !
+    sem_unlink(SEM_NAME_DATA_AVAILABLE); //@todo NO UNLINKEAR DOS VECES ERRO CONCEPTUAL.
+    sem_unlink(SEM_NAME_MUTEX);
+    shm_unlink(segment->name);
 }
 
 
@@ -129,6 +154,7 @@ void closeShm(sharedMemoryADT segment) {
         exit(EXIT_FAILURE);
     }
 
+    
     if (munmap(segment->start, SHM_SIZE) == -1) {
         perror("munmap failed");
         exit(EXIT_FAILURE);
@@ -139,7 +165,9 @@ void closeShm(sharedMemoryADT segment) {
         exit(EXIT_FAILURE);
     }
 
+
     free(segment->name);
     free(segment);
     segment=NULL;
 }
+
