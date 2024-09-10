@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 
 // Este esclavo soporta que el path completo no se mande en un solo write
 // sino que se mande en varios write
@@ -49,7 +51,8 @@ int read_path(char *buffer)
     }
     else
     {
-        perror("Pipe de lectura cerrado");
+        //habria que cerrar STDOUT?
+        //perror("Pipe de lectura cerrado");
         exit(EXIT_SUCCESS);  //@TODO lo cambie a esto no se si es asi
     }
 }

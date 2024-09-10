@@ -4,7 +4,9 @@
 #include <stdlib.h>
 #include <unistd.h>   
 #include <string.h>
+ #include <sys/wait.h>
 #include "shmLib.h"
+
 
 
 #ifndef _MD5_H

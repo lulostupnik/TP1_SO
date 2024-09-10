@@ -58,3 +58,4 @@ dkms.conf
 md5
 slave
 a.out
+.config

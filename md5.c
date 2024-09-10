@@ -1,3 +1,5 @@
+// This is a personal academic project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "md5.h"
 #include "slave.h"
 
@@ -105,9 +107,9 @@ int main(int argc, char *argv[]){
 
    
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
+   
     printf("%s", SHM_NAME);  //@TODO este es el buffer de llegada? o se refiere a otra cosa. 
     sleep(2);
-   
 
     int ans_fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
     if (ans_fd == -1) {
@@ -152,8 +154,8 @@ int main(int argc, char *argv[]){
         int read_fd = pipefd_parent_read[PIPE_READ];
         childs_pipe_fds_read[i] = read_fd;
         //Things for select function
-        if(pipefd_parent_read[PIPE_READ]){
-            highest_read_fd = read_fd;
+        if(pipefd_parent_read[PIPE_READ] > highest_read_fd){
+            highest_read_fd = read_fd;  
         }
         //FD_SET(read_fd, &readfds);
         // ...... //
@@ -241,7 +243,7 @@ int main(int argc, char *argv[]){
                 files_read += count_newline_strlen(string_from_fd, &buff_len);
                 
                 writeShm(string_from_fd, shm, buff_len);
-                fprintf(file, "%s", string_from_fd);
+                fprintf(file, "%s", string_from_fd); //esto cambiarlo al final. tardaria menos. 
 
                 //printf("BUFFER\n:%s", string_from_fd);
                 if(files_sent < argc -1){
@@ -254,18 +256,26 @@ int main(int argc, char *argv[]){
     char EOF_BUFF[1] = {END_OF_READ};
     writeShm(EOF_BUFF, shm, 1);    
     fflush(file);
+    fclose(file);
+    
     closeShm(shm);
     close(ans_fd);
-    fclose(file);
- //DUDAS::::
- //capaz loq que sigue se puede saltear....
+
+
+
     for(int i=0; i<CANT_SLAVES; i++){
-        close_fd(childs_pipe_fds_read[i]);// NO SE SI HAY QUE CERRAR LOS FDS DE LOS PIPES O SE CIERRAN SOLOS.
+        close_fd(childs_pipe_fds_read[i]);
         close_fd(childs_pipe_fds_write[i]);
-        // investigar 
+    } 
+   
+    int childs_left = CANT_SLAVES;
+    while(childs_left){
+        if(wait(NULL) == -1){
+            perror("Wait");
+        }
+        childs_left--;
     }
-    //@TODO SE QUEDAN DEFUNCT....... esta mal eso? podria hacer el wait de todos....
-    
+
    // while(1); con el while podemos ver los estados
     return 0;
 }
