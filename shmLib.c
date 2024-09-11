@@ -1,7 +1,5 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,16 +11,27 @@
 
 #define SEM_NAME_DATA_AVAILABLE "/dataAvailableSemaphore"
 #define SEM_NAME_MUTEX "/mutex"
-//#define SHM_SIZE 1024
+
+#define SHM_SIZE 4096
 //#define END_OF_READ '\0'
 
+
+//#define MEMORY_SIZE 2048
+
+// typedef struct memory{
+//     uint_64t readOffset;
+//     uint_64t writeOffset;
+//     char buffer[MEMORY_SIZE];
+// } memory;
+
+
 typedef struct sharedMemoryCDT {
-    char *name;
-    char *start;
+    char * name;
+    char * start; // memory * memory;
     int fd;
     size_t size;
-    size_t readOffset;
-    size_t writeOffset;
+    size_t readOffset; // --
+    size_t writeOffset; // --
     sem_t *dataAvailable;
     sem_t *mutex; //@TODO cambiar a tipo MUTEX?
 } sharedMemoryCDT;
@@ -87,47 +96,63 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     return shm;
 }
 
+
+
+
 size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) {
     size_t bytesWritten = 0;
    // char buffer2[1000];
     sem_wait(segment->mutex);
-    while (bytesWritten < bufferSize && segment->writeOffset < SHM_SIZE) {
+ // BUFFERbuffbytes Written z< bufferSize     
   // buffer2[bytesWritten] = buffer[bytesWritten];
-        
+
+    while (bytesWritten <= bufferSize && segment->writeOffset < SHM_SIZE) {
         char byte = buffer[bytesWritten++];
+        
         segment->start[segment->writeOffset++] = byte;
         if (byte == END_OF_READ) {
-            printf("BREAK write");
             break;
         }
     }
-    //buffer2[bytesWritten] = 0;
-    //printf("What i wrote %s", buffer2);
-   // printf("num: %d   %d", buffer2[bytesWritten-1], buffer2[bytesWritten]);
+    fprintf(stderr,"BytesWritten %d\n", bytesWritten);
+    if(!(segment->writeOffset < SHM_SIZE)){
+        perror("No more memory in shared memory");
+        exit(1);
+    }
+    
+    
     sem_post(segment->mutex);
-
     sem_post(segment->dataAvailable);
     return bytesWritten;
 }
 
-
 size_t readShm(char *buffer, sharedMemoryADT segment, size_t bufferSize) {
+
     size_t bytesRead = 0;
    
     sem_wait(segment->dataAvailable);
     sem_wait(segment->mutex);
-    segment->start[SHM_SIZE-1] = 0;
+    
+  
+    //segment->start[SHM_SIZE-1] = 0;
    // printf("%s",  segment->start);
     while (bytesRead < bufferSize && segment->readOffset < SHM_SIZE) {
         char byte = segment->start[segment->readOffset++];
+        ///segment->readOffset;
         buffer[bytesRead] = byte;
         if (byte == END_OF_READ) {
-            buffer[bytesRead] = 0;
-            printf("BREAK read");
+            buffer[bytesRead++] = 0;
             break;
         }
         bytesRead++;
     }
+    //fprintf(stderr,"BytesRead%d\n", bytesRead);
+
+    if(!(segment->readOffset < SHM_SIZE)){
+        perror("No more memory in shared memory");
+        exit(1);
+    }
+
     //printf("What i read %s cant bytes %ld\n", buffer, bytesRead);
     sem_post(segment->mutex);
     return bytesRead;

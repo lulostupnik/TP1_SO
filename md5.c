@@ -36,7 +36,7 @@ static inline void pipe_(int pipefd[2]){
 
 
 int count_newline_strlen(char *str, int * len) {
-
+    //fprintf(stderr, "\n-----Size buf %d", strlen(str));
     int count = 0;
     *len = 0;
 
@@ -47,10 +47,10 @@ int count_newline_strlen(char *str, int * len) {
         str++;
         (*len) ++;
     }
+    //fprintf(stderr, "Size buf %d   -- newline count %d -----", (*len), count);
 
     return count;
 }
-
 
 
 //@TODO ver si usar STRLEN o no
@@ -65,8 +65,7 @@ static int send_file(int fd, char * buff){
 
     //printf(RED"%s"WHITE "\n", buff);
 
-    buff[len] = END_OF_READ;
-    printf("My eof is %d\n", END_OF_READ );
+    buff[len] = '\n';
 
    // size_t file_lenght = strlen(file_name);
     if(write(fd, buff, len+1) == -1){
@@ -238,15 +237,20 @@ int main(int argc, char *argv[]){
             exit(EXIT_FAILURE);
         }
 
+     
         int buff_len = 0;
         // Check which file descriptors are ready
         for(int i = 0; i < CANT_SLAVES && fds_ready_cant > 0; i++) {
+            sleep(1);
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
                 read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. (no sacar que se ponga el file read en el buffer xq se me rompe todo )
                 //files_read += write_shm(string_from_fd, shm);
                 files_read += count_newline_strlen(string_from_fd, &buff_len);
-                
+               // fprintf(stderr, "THE ACTUAL VALUE %d", buff_len);
+               // imprimir buff_len
+               
                 writeShm(string_from_fd, shm, buff_len);
+
                 fprintf(file, "%s", string_from_fd); //esto cambiarlo al final. tardaria menos. 
 
                 //printf("BUFFER\n:%s", string_from_fd);
@@ -254,11 +258,13 @@ int main(int argc, char *argv[]){
                     send_file(childs_pipe_fds_write[i], argv[1+files_sent++]);
                 }
                 fds_ready_cant--;
-            }
+            } 
         }
     }
-    char EOF_BUFF[1] = {END_OF_READ};
-    writeShm(EOF_BUFF, shm, 1);    
+
+    char EOF_BUFF[1] = {'\0'};
+    writeShm(EOF_BUFF, shm, 0);    
+    
     fflush(file);
     fclose(file);
     close(ans_fd);
@@ -280,5 +286,4 @@ int main(int argc, char *argv[]){
    //while(1);
    return 0;
 }
-
 

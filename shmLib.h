@@ -13,7 +13,7 @@
 
 
 #define SHM_SIZE 4096
-#define END_OF_READ '\n'
+#define END_OF_READ '\0'
 
 #define LAST_USER 1
 

@@ -15,6 +15,7 @@
 #define SHM_SIZE 4096
 #define BUFFER_SIZE 256
 #define MD5_LENGTH 32
+//#define SLAVE_EOR '\n'
 
 
 
