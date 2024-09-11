@@ -7,6 +7,7 @@
 #define PIPE_READ 0
 #define SHM_NAME "md5_app_shm"
 #define MODE 0666
+#define MIN(a,b) (((a) < (b)) ? (a):(b))
 
 //@TODO agregar checkeo de error en close y en dup2
 
@@ -59,7 +60,7 @@ int count_newline_strlen(char *str, int * len) {
 //@TODO CHECKEAR lo que retorna o que 
 static int send_file(int fd, char * buff){
     int len = strlen(buff);
-    if(len >= MAX_FILE_PATH_LENGHT){
+    if(len >= MAX_PATH_LENGTH){
         return -1;
     }
 
@@ -139,7 +140,10 @@ int main(int argc, char *argv[]){
 
 
     fd_set readfds;
-    //FD_ZERO(&readfds);
+
+    int slaves_needed = MIN(CANT_SLAVES, ((argc-1 + FILES_PER_SLAVE-1) / FILES_PER_SLAVE));
+  
+    printf("Slaves needed %d. with %d files per slave and %d files to processes\n", slaves_needed, FILES_PER_SLAVE, argc-1);
 
     for(int i=0; i<CANT_SLAVES ; i++){
         

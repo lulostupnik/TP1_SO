@@ -16,7 +16,8 @@
 
     #define FILES_PER_SLAVE 2
     #define CANT_SLAVES 10
-    #define MAX_FILE_PATH_LENGHT 100
+    
+
 
 #endif
 
