@@ -68,3 +68,5 @@ PVS-Studio.log
 *.html
 report.task
 strace_out
+view
+resultado.txt

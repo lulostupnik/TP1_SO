@@ -110,7 +110,7 @@ int main(int argc, char *argv[]){
     sleep(2);
     unlinkShm(shm); 
 
-    int ans_fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
+    int ans_fd = open("resultado.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
     if (ans_fd == -1) {
         perror("open");
         return 1;
