@@ -1,180 +1,62 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
-// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
-
-// Este esclavo soporta que el path completo no se mande en un solo write
-// sino que se mande en varios write
-// Para esto se usa un buffer que se va llenando con los distintos writes
-// y cuando se lee un \n se ejecuta el hashmd5
-//
+// PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "slave.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/wait.h>
-#include "shmLib.h"
+#define MAX_PATH_LENGTH 255
+#define MAX_COMMAND_LENGTH (MAX_PATH_LENGTH + 7) // 7 = 6 de "md5sum " + 1 de \0
+#define MAX_PID_DIGITS 7
+#define MD5_OUT_LEN 32
 
-#define BUFFER_SIZE 1024
-
-//@todo manejar el caso de cierre de pipe de lectura
-
-void print_md5(char *buffer);
-
-// función que dado char *
-// encuentra el \n, guarda el tamaño de la línea, reemplaza el \n por \0
-// @todo reemplazar por strchr o alguna función de la librería estándar
-int find_newline(char *buffer)
+int main()
 {
-    int i;
-    for (i = 0; buffer[i] != '\n' && buffer[i] != END_OF_READ && buffer[i] != '\0'; i++)
+    setvbuf(stdout, NULL, _IONBF, 0);
+    char *path = NULL;
+    size_t len = 0;
+    ssize_t bytes_read = 0;
+    char command[MAX_COMMAND_LENGTH];
+    FILE *fp;
+    char response[MD5_OUT_LEN + MAX_PATH_LENGTH + 2]; // 2 = 1 espacio + 1 \0
+
+    while ((bytes_read = getline(&path, &len, stdin)) != -1)
     {
-    }
+        // todo -> chequear si el path es mayor a MAX_PATH_LENGTH
+        // todo -> if (bytes_read > 0 && path[bytes_read - 1] == '\n')
+        path[bytes_read - 1] = '\0';
 
-    if (buffer[i] == '\0')
-    { /* @todo manejar caso/error */
-    }
+        snprintf(command, MAX_COMMAND_LENGTH, "md5sum %s", path); // todo -> chequear si ahí va MAX_COMMAND_LENGTH
 
-    buffer[i] = '\0';
-    return i;
-}
-
-int read_path(char *buffer)
-{
-
-    int bytes_read;
-    if ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE - 1)) > 0)
-    {
-       // buffer[bytes_read] = '\0';
-
-        //fprintf(stderr, "Leí lo siguiente: %s\n", buffer);
-
-        return bytes_read;
-    }
-    else
-    {
-        //habria que cerrar STDOUT?
-        //perror("Pipe de lectura cerrado");
-        exit(EXIT_SUCCESS);  //@TODO lo cambie a esto no se si es asi
-    }
-}
-
-void chequear_path(char *path)
-{
-    // chequear que el path sea válido
-    // @todo completar
-    return;
-}
-
-// void run_md5sum(char *path)
-// {
-//     char buffer[BUFFER_SIZE];
-//     snprintf(buffer, sizeof(buffer), "Running md5sum on %s\n", path);
-//     write(STDOUT_FILENO, buffer, strlen(buffer));
-// }
-
-void run_md5sum(char *path)
-{
-    char buffer[BUFFER_SIZE];
-    int buffer_dim = 0;
-   // snprintf(buffer, sizeof(buffer), "Running md5sum on %s\n", path);
-   // write(STDOUT_FILENO, buffer, strlen(buffer));
-
-    // @todo cambiar BUFFER_SIZE
-    // pipefd[0] es para leer
-    // pipefd[1] es para escribir
-    // Buffer para leer el resultado de md5sum
-
-    
-    //char buffer[BUFFER_SIZE];
-    int pipefd[2];
-    
-    
-    if (pipe(pipefd) == -1)
-    {
-        perror("pipe");
-        exit(EXIT_FAILURE);
-    }
-
-    int pid;
-    pid = fork();
-    if (pid == -1)
-    {
-        perror("error fork");
-        exit(EXIT_FAILURE);
-    }
-
-    if (pid == 0)
-    {
-     //@TODO cambiar 0 y 1 por constantes   
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[1]);
-        
-        char *argv[] = {"/bin/md5sum", path, NULL};
-
-        if (execve("/bin/md5sum", argv, NULL) == -1)
+        fp = popen(command, "r");
+        if (fp == NULL)
         {
-            perror("Error ejecutando md5sum");
-            exit(EXIT_FAILURE);
-        };
+            // fprintf(stderr, "Error popen en path; %s", path);
+            perror("Error popen");
+            continue;
+        }
+        // todo -> chequear después del fgets ver si fallo md5sum
+
+        /* todo -> chequear si el fgets falla
+
+         if (fgets(response, sizeof(response), fp) == NULL)
+        {
+            perror("Error leyendo la respuesta de md5sum");
+            pclose(fp);
+            continue;
+        }
+        */
+        fgets(response, MD5_OUT_LEN + MAX_PATH_LENGTH + 1, fp); // +1 por el espacio, no se tiene en cuenta el \0, puesto que fgets lo agrega
+
+        printf("%d %s", getpid(), response);
+        // todo -> chequear si está bien el parametro del medio
+
+        // todo -> no se si se necesita manejar el error
+        int status = pclose(fp);
+        if (status == -1)
+        {
+            // todo -> si esto falla debería hacer un exit? Si es así no me tengo que olvidar de liberar el path
+            perror("Error al cerrar el pipe");
+        }
     }
 
-    close(pipefd[1]);
-    
-    snprintf(buffer, BUFFER_SIZE, "PID: %d\t", getpid());
-    buffer_dim = strlen(buffer);
+    free(path);
 
-    int max_bytes = BUFFER_SIZE - 1 - buffer_dim;
-    //@TODO fijarse si esto da negativo // errror 
-
-    size_t bytes_read = read(pipefd[0], buffer+buffer_dim, max_bytes);
-    buffer[bytes_read+buffer_dim] = 0; //@TODO no se si hace falta, y hay que checkear que bytes_read sea menor que BUFFER_SIZE. 
-
-    close(pipefd[0]);
-    waitpid(pid, NULL, 0); // Espera a que el hijo termine   @TODO cambiar el 0 por una constante. 
-   // write(STDOUT_FILENO, buffer, bytes_read + buffer_dim + 1); //@TODO checkear las cuentas.     
-    printf("%s", buffer);
-}
-
-void consume_path(char *buffer, int *idxstart, int *idxend)
-{
-    int cmdlength = 0;
-    if (*idxend == 0) // Si el buffer está vacío leemos de stdin
-    {
-        *idxend = read_path(buffer);
-    }
-
-    cmdlength = find_newline(buffer + *idxstart);
-
-    // chequear_path(buffer + *idxstart);
-
-    run_md5sum(buffer + *idxstart);
-
-    *idxstart += cmdlength + 1; // +1 para saltear el \n
-
-    if (*idxstart >= *idxend) // Si ya leímos todo el buffer
-    {
-        *idxstart = 0;
-        *idxend = 0;
-    }
-}
-
-int main(int argc, char const *argv[])
-{
-    setvbuf(stdout, NULL, _IONBF, 0);  // Averiguar bien, pero ahora se puede hacer printf
-    char buffer[BUFFER_SIZE];
-    int idxstart = 0;
-    int idxend = 0;
-
-    while (1)
-    {
-        consume_path(buffer, &idxstart, &idxend);
-    }
-    // nunca llegamos acá
     return 0;
 }
-
-// BUFFER = ""
-// read()
-// BUFFER = "marce\nbigo\ntri.txt\nslave.c\nbig\nview.c\n"
-//

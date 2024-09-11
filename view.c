@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
     if (argc == 2) {
         segment = getShm(argv[1],O_RDWR,0666);
     }else if(argc ==1){
+    
         char * buffer_input;
         size_t buffer_size = BUFFER_SIZE;
         int bytes = getline(&buffer_input, &buffer_size, stdin);

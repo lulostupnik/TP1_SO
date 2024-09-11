@@ -84,12 +84,7 @@ static void read_aux(int fd, char * buffer){
     
     ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE-1);    //@TODO ACA SE PUEDE CORTAR A LA MITAD ALGO QUE SE LEE !
     buffer[bytes_read] = 0;
-    // if (bytes_read > 0) {
-    //     printf("Read %zd bytes from file descriptor %d\n", bytes_read, fd);            
-    //     printf("What i read: %s\n", buffer);           
-    // } else if (bytes_read == 0) {
-    //     printf("End of file on file descriptor %d\n", fd);
-    // } else {
+
     if(bytes_read<0){    
         perror("read error");
         exit(EXIT_FAILURE);
@@ -152,12 +147,11 @@ int main(int argc, char *argv[]){
         childs_pipe_fds_write[i] = pipefd_parent_write[PIPE_WRITE]; 
 
 
-
         pipe_(pipefd_parent_read); 
         int read_fd = pipefd_parent_read[PIPE_READ];
         childs_pipe_fds_read[i] = read_fd;
         //Things for select function
-        if(pipefd_parent_read[PIPE_READ] > highest_read_fd){
+        if(read_fd > highest_read_fd){
             highest_read_fd = read_fd;  
         }
         //FD_SET(read_fd, &readfds);
@@ -245,11 +239,9 @@ int main(int argc, char *argv[]){
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
                 //sleep(3);
                 read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. (no sacar que se ponga el file read en el buffer xq se me rompe todo )
-                //files_read += write_shm(string_from_fd, shm);
+             
                 files_read += count_newline_strlen(string_from_fd, &buff_len);
-               // fprintf(stderr, "THE ACTUAL VALUE %d", buff_len);
-               // imprimir buff_len
-               //fprintf(stderr, "Buff len %ld \n", buff_len);
+
                 writeShm(string_from_fd, shm, buff_len);
 
                 fprintf(file, "%s", string_from_fd); //esto cambiarlo al final. tardaria menos. 
