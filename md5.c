@@ -248,7 +248,7 @@ int main(int argc, char *argv[]){
                 files_read += count_newline_strlen(string_from_fd, &buff_len);
                // fprintf(stderr, "THE ACTUAL VALUE %d", buff_len);
                // imprimir buff_len
-               
+               //fprintf(stderr, "Buff len %ld \n", buff_len);
                 writeShm(string_from_fd, shm, buff_len);
 
                 fprintf(file, "%s", string_from_fd); //esto cambiarlo al final. tardaria menos. 

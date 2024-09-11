@@ -41,9 +41,10 @@ int main(int argc, char *argv[]) {
         size_t bytesRead = readShm(buffer, segment, BUFFER_SIZE);
         
         if ( bytesRead == 1) {
+            break;
             flag++;
             if(flag == 2){
-                break;
+                
             }
             //break;
         }

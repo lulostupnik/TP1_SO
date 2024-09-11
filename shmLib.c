@@ -76,7 +76,7 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
         exit(EXIT_FAILURE);
     }
 
-    shm->dataAvailable = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 1);
+    shm->dataAvailable = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 0);
     if (shm->dataAvailable == SEM_FAILED) {
         perror("sem_open for dataAvailable failed");
         exit(EXIT_FAILURE);
@@ -114,7 +114,7 @@ size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) 
             break;
         }
     }
-    fprintf(stderr,"BytesWritten %d\n", bytesWritten);
+    //fprintf(stderr,"BytesWritten %d\n", bytesWritten);
     if(!(segment->writeOffset < SHM_SIZE)){
         perror("No more memory in shared memory");
         exit(1);
