@@ -63,3 +63,8 @@ a.out
 .confing
 /.config
 output.txt
+pvs-studio
+PVS-Studio.log
+*.html
+report.task
+strace_out
