@@ -59,3 +59,7 @@ md5
 slave
 a.out
 .config
+*.txt
+.confing
+/.config
+output.txt

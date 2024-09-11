@@ -111,7 +111,7 @@ int main(int argc, char *argv[]){
    
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
     printf("%s\n", SHM_NAME);  //@TODO este es el buffer de llegada? o se refiere a otra cosa. 
-    sleep(5);
+    sleep(2);
     unlinkShm(shm); 
 
     int ans_fd = open("output.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
@@ -241,8 +241,9 @@ int main(int argc, char *argv[]){
         int buff_len = 0;
         // Check which file descriptors are ready
         for(int i = 0; i < CANT_SLAVES && fds_ready_cant > 0; i++) {
-            sleep(1);
+            
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
+                //sleep(3);
                 read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. (no sacar que se ponga el file read en el buffer xq se me rompe todo )
                 //files_read += write_shm(string_from_fd, shm);
                 files_read += count_newline_strlen(string_from_fd, &buff_len);

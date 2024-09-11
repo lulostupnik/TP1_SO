@@ -35,18 +35,13 @@ int main(int argc, char *argv[]) {
     }
     //printf("Segment view %p\n", segment);
 
-    int flag = 0;
     while (1) {
         
         size_t bytesRead = readShm(buffer, segment, BUFFER_SIZE);
         
         if ( bytesRead == 1) {
-            break;
-            flag++;
-            if(flag == 2){
-                
-            }
-            //break;
+            break;  
+           
         }
         
         printf("%s", buffer); // No \n porque el buffer ya tiene el salto de línea
