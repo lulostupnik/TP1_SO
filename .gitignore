@@ -60,7 +60,7 @@ slave
 a.out
 .config
 *.txt
-.confing
+.config
 /.config
 output.txt
 pvs-studio
