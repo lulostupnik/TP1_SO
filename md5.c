@@ -34,8 +34,6 @@ static inline void pipe_(int pipefd[2]){
 }
 
 
-
-
 int count_newline_strlen(char *str, int * len) {
     //fprintf(stderr, "\n-----Size buf %d", strlen(str));
     int count = 0;
@@ -54,21 +52,14 @@ int count_newline_strlen(char *str, int * len) {
 }
 
 
-//@TODO ver si usar STRLEN o no
-//@TODO va el +1????????????????????
-//@TODO mando de a 1 file o de a varios
-//@TODO CHECKEAR lo que retorna o que 
+
 static int send_file(int fd, char * buff){
     int len = strlen(buff);
     if(len >= MAX_PATH_LENGTH){
         return -1;
     }
-
-    //printf(RED"%s"WHITE "\n", buff);
-
     buff[len] = '\n';
-
-   // size_t file_lenght = strlen(file_name);
+    
     if(write(fd, buff, len+1) == -1){
         perror("write");
         exit(EXIT_FAILURE);
@@ -79,8 +70,6 @@ static int send_file(int fd, char * buff){
 }
 
 
-//ESTA FUNCION DEBERIA SER PARA PONER EN SHARED MEMORY LO QUE ME MANDAN !
-//@TODO MEJORAR ESTA FUNCION.....
 static void read_aux(int fd, char * buffer){
     
     ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE-1);    //@TODO ACA SE PUEDE CORTAR A LA MITAD ALGO QUE SE LEE !
@@ -106,7 +95,7 @@ int main(int argc, char *argv[]){
 
    
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
-    printf("%s\n", SHM_NAME);  //@TODO este es el buffer de llegada? o se refiere a otra cosa. 
+    printf("%s\n", SHM_NAME);  
     sleep(2);
     unlinkShm(shm); 
 
@@ -123,8 +112,6 @@ int main(int argc, char *argv[]){
         exit(EXIT_FAILURE);
     }
 
-  
-
 
     pid_t pid;
     const char *pathname = "./slave";
@@ -137,7 +124,6 @@ int main(int argc, char *argv[]){
 
     int pipefd_parent_write[2];
     int pipefd_parent_read[2];
-
 
     fd_set readfds;
 
@@ -156,9 +142,7 @@ int main(int argc, char *argv[]){
         if(read_fd > highest_read_fd){
             highest_read_fd = read_fd;  
         }
-        //FD_SET(read_fd, &readfds);
-        // ...... //
-
+ 
 
 
         pid = fork();
@@ -199,12 +183,7 @@ int main(int argc, char *argv[]){
     //Ya tengo todos los SLAVES creados
 
 
-    //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * slaves_needed 
-    //@TODO fijarse si va el files sent en ambos fors
     int files_sent = 0;
-
-    
-    
 
     for(int i=0; i<slaves_needed && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
@@ -214,22 +193,17 @@ int main(int argc, char *argv[]){
             }
         } 
     }
-    
-
-    // nfds  should  be  set  to  the  highest-numbered file descriptor in any of the three sets, plus 1.  The indicated file descriptors in each set are checked, up to this limit (but see BUGS).
-    
+        
     //Me quedan archivos para mandar
-
     int files_read = 0;
     char string_from_fd[BUFFER_SIZE];
-    //@TODO checkear si siempre hay que hacer el FD_SET si o SI. 
+
     while (files_read < argc - 1) {
         FD_ZERO(&readfds);
         for(int i = 0; i < slaves_needed; i++) {
             FD_SET(childs_pipe_fds_read[i], &readfds);
         }
 
-        // Call select
         int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
             perror("select error");
@@ -238,20 +212,13 @@ int main(int argc, char *argv[]){
 
      
         int buff_len = 0;
-        // Check which file descriptors are ready
         for(int i = 0; i < slaves_needed && fds_ready_cant > 0; i++) {
             
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
-                //sleep(3);
-                read_aux(childs_pipe_fds_read[i], string_from_fd);   //@TODO ACA VA LO DE SHARED MEMORY. (no sacar que se ponga el file read en el buffer xq se me rompe todo )
-             
+                read_aux(childs_pipe_fds_read[i], string_from_fd);  
                 files_read += count_newline_strlen(string_from_fd, &buff_len);
-
                 writeShm(string_from_fd, shm, buff_len);
-
-                fprintf(file, "%s", string_from_fd); //esto cambiarlo al final. tardaria menos. 
-
-                //printf("BUFFER\n:%s", string_from_fd);
+                fprintf(file, "%s", string_from_fd); 
                 if(files_sent < argc -1){
                     if(send_file(childs_pipe_fds_write[i], argv[1+files_sent++]) != 0){
                         perror("File path is longer than max");
@@ -284,7 +251,6 @@ int main(int argc, char *argv[]){
         childs_left--;
     }
 
-   //while(1);
    return 0;
 }
 

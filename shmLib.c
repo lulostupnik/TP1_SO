@@ -12,28 +12,17 @@
 #define SEM_NAME_DATA_AVAILABLE "/dataAvailableSemaphore"
 #define SEM_NAME_MUTEX "/mutex"
 
-#define SHM_SIZE 4096
-//#define END_OF_READ '\0'
-
-
-//#define MEMORY_SIZE 2048
-
-// typedef struct memory{
-//     uint_64t readOffset;
-//     uint_64t writeOffset;
-//     char buffer[MEMORY_SIZE];
-// } memory;
 
 
 typedef struct sharedMemoryCDT {
     char * name;
-    char * start; // memory * memory;
+    char * start; 
     int fd;
     size_t size;
-    size_t readOffset; // --
-    size_t writeOffset; // --
+    size_t readOffset; 
+    size_t writeOffset; 
     sem_t *dataAvailable;
-    sem_t *mutex; //@TODO cambiar a tipo MUTEX?
+    sem_t *mutex; 
 } sharedMemoryCDT;
 
 sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
