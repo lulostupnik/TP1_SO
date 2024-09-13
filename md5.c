@@ -143,7 +143,6 @@ int main(int argc, char *argv[]){
 
     int slaves_needed = MIN(CANT_SLAVES, ((argc-1 + FILES_PER_SLAVE-1) / FILES_PER_SLAVE));
   
-    printf("Slaves needed %d. with %d files per slave and %d files to processes\n", slaves_needed, FILES_PER_SLAVE, argc-1);
 
     for(int i=0; i<CANT_SLAVES ; i++){
         
@@ -210,7 +209,9 @@ int main(int argc, char *argv[]){
 
     for(int i=0; i<CANT_SLAVES && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
-            send_file(childs_pipe_fds_write[i],argv[1+files_sent++]);
+            if(send_file(childs_pipe_fds_write[i],argv[1+files_sent++]) != 0){
+                exit();
+            }
         } 
     }
     

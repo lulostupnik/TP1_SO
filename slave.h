@@ -2,7 +2,7 @@
 #define _SLAVE_H
 
 #define BUFFER_SIZE 1024
-#define MAX_PATH_LENGTH 255
+#define MAX_PATH_LENGTH 4096
 
 
 #include <stdio.h>
