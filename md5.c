@@ -75,7 +75,7 @@ static int send_file(int fd, char * buff){
     }
     
     buff[len] = 0;
-    return 1;
+    return 0;
 }
 
 
@@ -142,9 +142,8 @@ int main(int argc, char *argv[]){
     fd_set readfds;
 
     int slaves_needed = MIN(CANT_SLAVES, ((argc-1 + FILES_PER_SLAVE-1) / FILES_PER_SLAVE));
-  
 
-    for(int i=0; i<CANT_SLAVES ; i++){
+    for(int i=0; i<slaves_needed ; i++){
         
         pipe_(pipefd_parent_write);
         childs_pipe_fds_write[i] = pipefd_parent_write[PIPE_WRITE]; 
@@ -200,17 +199,18 @@ int main(int argc, char *argv[]){
     //Ya tengo todos los SLAVES creados
 
 
-    //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * CANT_SLAVES 
+    //OBS: con esta implementacion mando FILES_PER_SLAVE sin importar si quedan slaves sin files si FILES es mas chico que FILES_PER_SLAVE * slaves_needed 
     //@TODO fijarse si va el files sent en ambos fors
     int files_sent = 0;
 
     
     
 
-    for(int i=0; i<CANT_SLAVES && files_sent+1 < argc ; i++){
+    for(int i=0; i<slaves_needed && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
             if(send_file(childs_pipe_fds_write[i],argv[1+files_sent++]) != 0){
-                exit();
+                perror("File path is longer than max");
+                exit(EXIT_FAILURE);
             }
         } 
     }
@@ -225,7 +225,7 @@ int main(int argc, char *argv[]){
     //@TODO checkear si siempre hay que hacer el FD_SET si o SI. 
     while (files_read < argc - 1) {
         FD_ZERO(&readfds);
-        for(int i = 0; i < CANT_SLAVES; i++) {
+        for(int i = 0; i < slaves_needed; i++) {
             FD_SET(childs_pipe_fds_read[i], &readfds);
         }
 
@@ -239,7 +239,7 @@ int main(int argc, char *argv[]){
      
         int buff_len = 0;
         // Check which file descriptors are ready
-        for(int i = 0; i < CANT_SLAVES && fds_ready_cant > 0; i++) {
+        for(int i = 0; i < slaves_needed && fds_ready_cant > 0; i++) {
             
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
                 //sleep(3);
@@ -253,7 +253,10 @@ int main(int argc, char *argv[]){
 
                 //printf("BUFFER\n:%s", string_from_fd);
                 if(files_sent < argc -1){
-                    send_file(childs_pipe_fds_write[i], argv[1+files_sent++]);
+                    if(send_file(childs_pipe_fds_write[i], argv[1+files_sent++]) != 0){
+                        perror("File path is longer than max");
+                        exit(EXIT_FAILURE);
+                    }
                 }
                 fds_ready_cant--;
             } 
@@ -269,11 +272,11 @@ int main(int argc, char *argv[]){
     closeShm(shm);
 
 
-    for(int i=0; i<CANT_SLAVES; i++){
+    for(int i=0; i<slaves_needed; i++){
         close_fd(childs_pipe_fds_read[i]);
         close_fd(childs_pipe_fds_write[i]);
     }
-    int childs_left = CANT_SLAVES;
+    int childs_left = slaves_needed;
     while(childs_left){
         if(wait(NULL) == -1){
             perror("Wait");
