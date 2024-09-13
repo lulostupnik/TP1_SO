@@ -43,7 +43,7 @@ int main()
             continue;
         }
         */
-        fgets(response, MD5_OUT_LEN + MAX_PATH_LENGTH + 1, fp); // +1 por el espacio, no se tiene en cuenta el \0, puesto que fgets lo agrega
+        fgets(response, MD5_OUT_LEN + MAX_PATH_LENGTH + 3, fp); // +2 por los espacios, +1 por \n, no se tiene en cuenta el \0, puesto que fgets lo agrega
 
         printf("%d %s", getpid(), response);
         // todo -> chequear si está bien el parametro del medio
