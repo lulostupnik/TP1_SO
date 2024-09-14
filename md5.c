@@ -126,6 +126,8 @@ static void resend_files_to_slave(int * files_sent, int cant_to_send, int childs
 static void clean_resources_pipe(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_to_close_fd_read, int slaves_to_close_fd_write, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
     close(ans_fd);
+    char EOF_BUFF[1] = {'\0'};
+    writeShm(EOF_BUFF, shm, 0); 
     closeShm(shm);
 
     int max = MAX(slaves_to_close_fd_read, slaves_to_close_fd_write);
@@ -145,6 +147,8 @@ static void clean_resources_pipe(FILE * file, int ans_fd, sharedMemoryADT shm, i
 static void cleanResources(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_to_close_fd, int childs_to_wait, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
     close(ans_fd);
+    char EOF_BUFF[1] = {'\0'};
+    writeShm(EOF_BUFF, shm, 0);
     closeShm(shm);
     for(int i=0; i<slaves_to_close_fd; i++){
         close_fd(childs_pipe_fds_read[i]);
@@ -294,9 +298,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    char EOF_BUFF[1] = {'\0'};
-    writeShm(EOF_BUFF, shm, 0);    
-    
+  
     fflush(file);
    cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
