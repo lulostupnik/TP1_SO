@@ -11,7 +11,7 @@
 
 #define SEM_NAME_DATA_AVAILABLE "/dataAvailableSemaphore"
 #define SEM_NAME_MUTEX "/mutex"
-
+#define ERROR 1
 
 
 typedef struct sharedMemoryCDT {
@@ -28,60 +28,74 @@ typedef struct sharedMemoryCDT {
 sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     sharedMemoryADT shm = malloc(sizeof(sharedMemoryCDT));
     if (shm == NULL) {
-        perror("malloc failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Memory allocation failed for sharedMemoryCDT");
+        return NULL;
     }
 
     shm->name = strdup(name);
     if (shm->name == NULL) {
-        perror("strdup failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to duplicate the name string for shared memory");
+        free(shm);
+        return NULL;
     }
 
     //Puede retornar error pero es por si hay semaforos/shm los cuales no queremos abiertos.
     if (oflag & O_CREAT) {
         unlinkShm(shm);
-        // sem_unlink(SEM_NAME_DATA_AVAILABLE);
-        // sem_unlink(SEM_NAME_MUTEX);
-        // shm_unlink(name);
     }
     
     shm->fd = shm_open(shm->name, oflag, mode);
     if (shm->fd == -1) {
-        perror("shm_open failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to open shared memory");
+        free(shm);
+        return NULL;
     }
 
 
     if (oflag & O_CREAT) {
         if (ftruncate(shm->fd, SHM_SIZE) == -1) {
-            perror("ftruncate failed");
-            exit(EXIT_FAILURE);
+            perror("Error: Failed to set shared memory size");
+            close(shm->fd);
+            free(shm->name);
+            free(shm);
+            return NULL;
         }
     }
 
     shm->start = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm->fd, 0);
-    if (shm->start == MAP_FAILED) {
-        perror("mmap failed");
-        exit(EXIT_FAILURE);
+     if (shm->start == MAP_FAILED) {
+        perror("Error: Memory mapping failed");
+        close(shm->fd);
+        free(shm->name);
+        free(shm);
+        return NULL;
     }
 
     shm->dataAvailable = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 0);
-    if (shm->dataAvailable == SEM_FAILED) {
-        perror("sem_open for dataAvailable failed");
-        exit(EXIT_FAILURE);
+   if  (shm->dataAvailable == SEM_FAILED) {
+        perror("Error: Failed to open data availability semaphore");
+        munmap(shm->start, SHM_SIZE);
+        close(shm->fd);
+        free(shm->name);
+        free(shm);
+        return NULL;
     }
 
     shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, 0644, 1);
     if (shm->mutex == SEM_FAILED) {
-        perror("sem_open for mutex failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to open mutex semaphore");
+        sem_close(shm->dataAvailable);
+        munmap(shm->start, SHM_SIZE);
+        close(shm->fd);
+        free(shm->name);
+        free(shm);
+        return NULL;
     }
 
     shm->size = SHM_SIZE;
     shm->readOffset = 0;
     shm->writeOffset = 0;
-    
+
 
     return shm;
 }
@@ -161,28 +175,24 @@ void unlinkShm(sharedMemoryADT segment){
 
 void closeShm(sharedMemoryADT segment) {
     if (sem_close(segment->mutex) == -1) {
-        perror("sem_close for mutex failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to close mutex semaphore");
     }
     if (sem_close(segment->dataAvailable) == -1) {
-        perror("sem_close for dataAvailable failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to close dataAvailable semaphore");
     }
 
-    
     if (munmap(segment->start, SHM_SIZE) == -1) {
-        perror("munmap failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to unmap shared memory region");
     }
 
     if (close(segment->fd) == -1) {
-        perror("close failed");
-        exit(EXIT_FAILURE);
+        perror("Error: Failed to close shared memory file descriptor");
     }
-
 
     free(segment->name);
     free(segment);
-    segment=NULL;
+    segment = NULL;
 }
+
+
 

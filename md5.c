@@ -8,11 +8,9 @@
 #define SHM_NAME "md5_app_shm"
 #define MODE 0666
 #define MIN(a,b) (((a) < (b)) ? (a):(b))
+#define ERROR 1
 
 //@TODO agregar checkeo de error en close y en dup2
-
-#define RED "\033[31m"
-#define WHITE "\033[37m"
 
 static inline void close_fd(int fd){
     if(close(fd) == -1){
@@ -122,17 +120,15 @@ static void resend_files_to_slave(int * files_sent, int cant_to_send, int childs
 }
 
 int main(int argc, char *argv[]){
-    
     if(argc <= 1){
         perror("Error: No input files specified.\nUsage: ./md5 <file1> [file2 ... fileN]\n");
-        return -1;
+        return ERROR;
     }
     if(setvbuf(stdout, NULL, _IONBF, 0)!= 0){
-        perror("buffer printf");
-        exit(EXIT_FAILURE);
+        perror("Failed to disable buffering for stdout");
+        return ERROR;
     }  
 
-   
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
     printf("%s\n", SHM_NAME);  
     sleep(2);
@@ -219,7 +215,7 @@ int main(int argc, char *argv[]){
     char string_from_fd[BUFFER_SIZE];
 
     while (files_read < argc - 1) {
-           
+
         select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
         int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
