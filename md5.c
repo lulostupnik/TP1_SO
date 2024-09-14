@@ -53,13 +53,14 @@ int count_newline_strlen(char *str, int * len) {
 static int send_file(int fd, char * buff){
     int len = strlen(buff);
     if(len >= MAX_PATH_LENGTH){
-        return -1;
+        perror("Error: File path is longer than max");
+        return 1;
     }
     buff[len] = '\n';
     
     if(write(fd, buff, len+1) == -1){
-        perror("write");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: Could not write in fd %d\n",fd);
+        return 1;
     }
     
     buff[len] = 0;
@@ -67,15 +68,15 @@ static int send_file(int fd, char * buff){
 }
 
 
-static void read_aux(int fd, char * buffer){
+static int read_aux(int fd, char * buffer){
     
     ssize_t bytes_read = read(fd, buffer, BUFFER_SIZE-1);    //@TODO ACA SE PUEDE CORTAR A LA MITAD ALGO QUE SE LEE !
     buffer[bytes_read] = 0;
 
     if(bytes_read<0){    
-        perror("read error");
-        exit(EXIT_FAILURE);
+        return ERROR;
     }
+    return 0;
 }
 
 static int set_up_slave(int slave_num, int childs_pipe_fds_read[], int childs_pipe_fds_write[], int pipefd_parent_read[], int pipefd_parent_write[] ){
@@ -111,15 +112,15 @@ static void select_function_setup(fd_set * readfds, int slaves_needed, int child
 }
 
 
-static void resend_files_to_slave(int * files_sent, int cant_to_send, int childs_pipe_fds_write[], int slave_index, int argc, char * argv[]){
+static int resend_files_to_slave(int * files_sent, int cant_to_send, int childs_pipe_fds_write[], int slave_index, int argc, char * argv[]){
     while((*files_sent < argc -1) && cant_to_send > 0 ){
             if(send_file(childs_pipe_fds_write[slave_index], argv[1+(*files_sent)++]) != 0){
-                perror("File path is longer than max");
-                exit(EXIT_FAILURE);
+                return ERROR;
             }
             
         cant_to_send--;
     }
+    return 0;
 }
 
 //Todo checkear
@@ -264,8 +265,9 @@ int main(int argc, char *argv[]){
     for(int i=0; i<slaves_needed && files_sent+1 < argc ; i++){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
             if(send_file(childs_pipe_fds_write[i],argv[1+files_sent++]) != 0){
-                perror("File path is longer than max");
-                exit(EXIT_FAILURE);
+                perror("Error: File path is longer than max");
+                cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                return ERROR;
             }
         } 
     }
@@ -279,20 +281,30 @@ int main(int argc, char *argv[]){
         select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
         int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
-            perror("select error");
-            exit(EXIT_FAILURE);
+            perror("Error: could not monitor fds from slaves pipe");
+            cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+            return ERROR;
         }
 
         int buff_len = 0;
         int count = 0;
         for(int i = 0; i < slaves_needed && fds_ready_cant > 0; i++) {
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
-                read_aux(childs_pipe_fds_read[i], string_from_fd);  
+                
+                if(read_aux(childs_pipe_fds_read[i], string_from_fd) != 0){
+                    fprintf(stderr,"Error: Could not read from fd %d\n", childs_pipe_fds_read[i]);
+                    cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    return ERROR;
+                }
+
                 count = count_newline_strlen(string_from_fd, &buff_len);
                 files_read += count;
-                writeShm(string_from_fd, shm, buff_len);
+                writeShm(string_from_fd, shm, buff_len);  //agregar checkeo dspues
                 fprintf(file, "%s", string_from_fd); 
-                resend_files_to_slave(&files_sent, count, childs_pipe_fds_write, i, argc, argv);
+                if(resend_files_to_slave(&files_sent, count, childs_pipe_fds_write, i, argc, argv) != 0){
+                    cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    return ERROR;
+                }
                 fds_ready_cant--;
             } 
         }

@@ -122,7 +122,7 @@ size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) 
     }
     if(!(segment->writeOffset < SHM_SIZE)){
         perror("No more memory in shared memory");
-        exit(1);
+        exit(1); //Todo cambiar a un return
     }
     
     
