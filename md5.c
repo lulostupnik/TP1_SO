@@ -109,6 +109,18 @@ static void select_function_setup(fd_set * readfds, int slaves_needed, int child
     }
 }
 
+
+static void resend_files_to_slave(int * files_sent, int cant_to_send, int childs_pipe_fds_write[], int slave_index, int argc, char * argv[]){
+    while((*files_sent < argc -1) && cant_to_send > 0 ){
+            if(send_file(childs_pipe_fds_write[slave_index], argv[1+(*files_sent)++]) != 0){
+                perror("File path is longer than max");
+                exit(EXIT_FAILURE);
+            }
+            
+        cant_to_send--;
+    }
+}
+
 int main(int argc, char *argv[]){
     
     if(argc <= 1){
@@ -217,19 +229,15 @@ int main(int argc, char *argv[]){
 
      
         int buff_len = 0;
+        int count = 0;
         for(int i = 0; i < slaves_needed && fds_ready_cant > 0; i++) {
-            
             if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
                 read_aux(childs_pipe_fds_read[i], string_from_fd);  
-                files_read += count_newline_strlen(string_from_fd, &buff_len);
+                count = count_newline_strlen(string_from_fd, &buff_len);
+                files_read += count;
                 writeShm(string_from_fd, shm, buff_len);
                 fprintf(file, "%s", string_from_fd); 
-                if(files_sent < argc -1){
-                    if(send_file(childs_pipe_fds_write[i], argv[1+files_sent++]) != 0){
-                        perror("File path is longer than max");
-                        exit(EXIT_FAILURE);
-                    }
-                }
+                resend_files_to_slave(&files_sent, count, childs_pipe_fds_write, i, argc, argv);
                 fds_ready_cant--;
             } 
         }
