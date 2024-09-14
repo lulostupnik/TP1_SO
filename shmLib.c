@@ -40,9 +40,10 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
 
     //Puede retornar error pero es por si hay semaforos/shm los cuales no queremos abiertos.
     if (oflag & O_CREAT) {
-        sem_unlink(SEM_NAME_DATA_AVAILABLE);
-        sem_unlink(SEM_NAME_MUTEX);
-        shm_unlink(name);
+        unlinkShm(shm);
+        // sem_unlink(SEM_NAME_DATA_AVAILABLE);
+        // sem_unlink(SEM_NAME_MUTEX);
+        // shm_unlink(name);
     }
     
     shm->fd = shm_open(shm->name, oflag, mode);

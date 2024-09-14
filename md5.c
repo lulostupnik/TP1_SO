@@ -35,7 +35,6 @@ static inline void pipe_(int pipefd[2]){
 
 
 int count_newline_strlen(char *str, int * len) {
-    //fprintf(stderr, "\n-----Size buf %d", strlen(str));
     int count = 0;
     *len = 0;
 
@@ -46,7 +45,6 @@ int count_newline_strlen(char *str, int * len) {
         str++;
         (*len) ++;
     }
-    //fprintf(stderr, "Size buf %d   -- newline count %d -----", (*len), count);
 
     return count;
 }
@@ -81,6 +79,35 @@ static void read_aux(int fd, char * buffer){
     }
 }
 
+static void set_up_slave(int slave_num, int childs_pipe_fds_read[], int childs_pipe_fds_write[], int pipefd_parent_read[], int pipefd_parent_write[] ){
+    for(int j=0;j<slave_num ; j++){
+                close_fd(childs_pipe_fds_read[j]);
+                close_fd(childs_pipe_fds_write[j]);  //En los hijos se quedaban abiertos los FDS.  Checkear
+            }
+
+            //Como hijo pongo mi STDOUT como el pipe en donde lee el padre y cierro ambos FDS
+            if(dup2(pipefd_parent_read[PIPE_WRITE], STDOUT_FILENO) == -1){
+                perror("dup");
+                exit(EXIT_FAILURE);
+            }
+            close_both_fds(pipefd_parent_read);
+
+            //Como hijo pongo mi STDIN en donde escribe el padre y cierro ambos FDS
+            if(dup2(pipefd_parent_write[PIPE_READ], STDIN_FILENO)){
+                perror("dup");
+                exit(EXIT_FAILURE);
+            }
+            close_both_fds(pipefd_parent_write);
+}
+
+
+
+static void select_function_setup(fd_set * readfds, int slaves_needed, int childs_pipe_fds_read[]){
+    FD_ZERO(readfds);
+    for(int i = 0; i < slaves_needed; i++) {
+        FD_SET(childs_pipe_fds_read[i], readfds);
+    }
+}
 
 int main(int argc, char *argv[]){
     
@@ -91,7 +118,7 @@ int main(int argc, char *argv[]){
     if(setvbuf(stdout, NULL, _IONBF, 0)!= 0){
         perror("buffer printf");
         exit(EXIT_FAILURE);
-    }  // AVERIGUAR
+    }  
 
    
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
@@ -138,12 +165,11 @@ int main(int argc, char *argv[]){
         pipe_(pipefd_parent_read); 
         int read_fd = pipefd_parent_read[PIPE_READ];
         childs_pipe_fds_read[i] = read_fd;
-        //Things for select function
+       
         if(read_fd > highest_read_fd){
             highest_read_fd = read_fd;  
         }
  
-
 
         pid = fork();
         if (pid == -1) {
@@ -152,25 +178,7 @@ int main(int argc, char *argv[]){
         }
 
         if (pid == 0) {
-            for(int j=0;j<i ; j++){
-                close_fd(childs_pipe_fds_read[j]);
-                close_fd(childs_pipe_fds_write[j]);  //En los hijos se quedaban abiertos los FDS.  Checkear
-            }
-
-            //Como hijo pongo mi STDOUT como el pipe en donde lee el padre y cierro ambos FDS
-            if(dup2(pipefd_parent_read[PIPE_WRITE], STDOUT_FILENO) == -1){
-                perror("dup");
-                exit(EXIT_FAILURE);
-            }
-            close_both_fds(pipefd_parent_read);
-
-            //Como hijo pongo mi STDIN en donde escribe el padre y cierro ambos FDS
-            if(dup2(pipefd_parent_write[PIPE_READ], STDIN_FILENO)){
-                perror("dup");
-                exit(EXIT_FAILURE);
-            }
-            close_both_fds(pipefd_parent_write);
-
+            set_up_slave(i, childs_pipe_fds_read, childs_pipe_fds_write, pipefd_parent_read, pipefd_parent_write);
             execve(pathname, argv_, envp_);
             perror("execve");
             exit(EXIT_FAILURE);
@@ -199,11 +207,8 @@ int main(int argc, char *argv[]){
     char string_from_fd[BUFFER_SIZE];
 
     while (files_read < argc - 1) {
-        FD_ZERO(&readfds);
-        for(int i = 0; i < slaves_needed; i++) {
-            FD_SET(childs_pipe_fds_read[i], &readfds);
-        }
-
+   
+        select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
         int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
             perror("select error");
