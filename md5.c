@@ -8,14 +8,15 @@
 #define SHM_NAME "md5_app_shm"
 #define MODE 0666
 #define MIN(a,b) (((a) < (b)) ? (a):(b))
+#define MAX(a,b) (((a) > (b)) ? (a):(b))
+
 #define ERROR 1
 
 //@TODO agregar checkeo de error en close y en dup2
 
 static inline void close_fd(int fd){
     if(close(fd) == -1){
-        perror("close");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Error: could not close fd %d\n", fd);
     }
 }
 
@@ -24,12 +25,12 @@ static inline void close_both_fds(int pipe[2]){
     close_fd(pipe[PIPE_WRITE]);
 }
 
-static inline void pipe_(int pipefd[2]){
-    if (pipe(pipefd) == -1) {
-            perror("pipe");
-            exit(EXIT_FAILURE);
-    }
-}
+// static inline void pipe_(int pipefd[2]){
+//     if (pipe(pipefd) == -1) {
+//             perror("pipe");
+//             exit(EXIT_FAILURE);
+//     }
+// }
 
 
 int count_newline_strlen(char *str, int * len) {
@@ -77,25 +78,27 @@ static void read_aux(int fd, char * buffer){
     }
 }
 
-static void set_up_slave(int slave_num, int childs_pipe_fds_read[], int childs_pipe_fds_write[], int pipefd_parent_read[], int pipefd_parent_write[] ){
-    for(int j=0;j<slave_num ; j++){
+static int set_up_slave(int slave_num, int childs_pipe_fds_read[], int childs_pipe_fds_write[], int pipefd_parent_read[], int pipefd_parent_write[] ){
+            int flag = 0;
+            for(int j=0;j<slave_num ; j++){
                 close_fd(childs_pipe_fds_read[j]);
                 close_fd(childs_pipe_fds_write[j]);  //En los hijos se quedaban abiertos los FDS.  Checkear
             }
 
             //Como hijo pongo mi STDOUT como el pipe en donde lee el padre y cierro ambos FDS
             if(dup2(pipefd_parent_read[PIPE_WRITE], STDOUT_FILENO) == -1){
-                perror("dup");
-                exit(EXIT_FAILURE);
+                perror("Error: could not change slave stdout\n");
+                flag = ERROR;
             }
             close_both_fds(pipefd_parent_read);
 
             //Como hijo pongo mi STDIN en donde escribe el padre y cierro ambos FDS
             if(dup2(pipefd_parent_write[PIPE_READ], STDIN_FILENO)){
-                perror("dup");
-                exit(EXIT_FAILURE);
+                perror("Error: could not change slave stdin\n");
+                flag = ERROR;
             }
             close_both_fds(pipefd_parent_write);
+            return flag;
 }
 
 
@@ -119,20 +122,39 @@ static void resend_files_to_slave(int * files_sent, int cant_to_send, int childs
     }
 }
 
-
-static void cleanResources(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_needed, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+//Todo checkear
+static void clean_resources_pipe(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_to_close_fd_read, int slaves_to_close_fd_write, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
     close(ans_fd);
     closeShm(shm);
-    for(int i=0; i<slaves_needed; i++){
+
+    int max = MAX(slaves_to_close_fd_read, slaves_to_close_fd_write);
+
+    for(int i=0; i<max; i++){
+        if(slaves_to_close_fd_read-- > 0){
+            close_fd(childs_pipe_fds_read[i]);
+        }
+        if(slaves_to_close_fd_write-- > 0){
+            close_fd(childs_pipe_fds_write[i]);
+
+        }
+    }
+}
+
+
+static void cleanResources(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_to_close_fd, int childs_to_wait, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+    fclose(file);
+    close(ans_fd);
+    closeShm(shm);
+    for(int i=0; i<slaves_to_close_fd; i++){
         close_fd(childs_pipe_fds_read[i]);
         close_fd(childs_pipe_fds_write[i]);
     }
-    while(slaves_needed > 0){
+    while(childs_to_wait > 0){
         if(wait(NULL) == -1){
             perror("Wait");
         }
-        slaves_needed--;
+        childs_to_wait--;
     }
 }
 
@@ -189,11 +211,19 @@ int main(int argc, char *argv[]){
 
     for(int i=0; i<slaves_needed ; i++){
         
-        pipe_(pipefd_parent_write);
+        if(pipe(pipefd_parent_write) == -1){
+            perror("Error: Could not create pipe for slave\n");
+            clean_resources_pipe(file, ans_fd, shm, i-1, i, childs_pipe_fds_read, childs_pipe_fds_write);
+            return ERROR;
+        }
         childs_pipe_fds_write[i] = pipefd_parent_write[PIPE_WRITE]; 
 
-
-        pipe_(pipefd_parent_read); 
+        if(pipe(pipefd_parent_read) == -1){
+            perror("Error: Could not create pipe for slave\n");
+            clean_resources_pipe(file, ans_fd, shm, i, i, childs_pipe_fds_read, childs_pipe_fds_write);
+            return ERROR;
+        }
+        
         int read_fd = pipefd_parent_read[PIPE_READ];
         childs_pipe_fds_read[i] = read_fd;
        
@@ -204,15 +234,18 @@ int main(int argc, char *argv[]){
 
         pid = fork();
         if (pid == -1) {
-            perror("fork");
-            exit(EXIT_FAILURE);
+            perror("Error: could not fork");
+            cleanResources(file, ans_fd, shm, i, i-1, childs_pipe_fds_read, childs_pipe_fds_write);
+            return ERROR;
         }
 
         if (pid == 0) {
-            set_up_slave(i, childs_pipe_fds_read, childs_pipe_fds_write, pipefd_parent_read, pipefd_parent_write);
+            if(set_up_slave(i, childs_pipe_fds_read, childs_pipe_fds_write, pipefd_parent_read, pipefd_parent_write) != 0){
+                return ERROR; //@TODO deberia liberar algo?/ algo mas ?
+            }
             execve(pathname, argv_, envp_);
-            perror("execve");
-            exit(EXIT_FAILURE);
+            perror("Error: Could not excecute ./slave");
+            return ERROR;  //@todo deberia liberar algo?
         }
         //Soy el padre:
         close_fd(pipefd_parent_read[PIPE_WRITE]);
@@ -265,7 +298,7 @@ int main(int argc, char *argv[]){
     writeShm(EOF_BUFF, shm, 0);    
     
     fflush(file);
-   cleanResources(file, ans_fd,  shm,  slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+   cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
 }
 
