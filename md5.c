@@ -219,7 +219,7 @@ int main(int argc, char *argv[]){
     char string_from_fd[BUFFER_SIZE];
 
     while (files_read < argc - 1) {
-   
+           
         select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
         int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
@@ -227,7 +227,6 @@ int main(int argc, char *argv[]){
             exit(EXIT_FAILURE);
         }
 
-     
         int buff_len = 0;
         int count = 0;
         for(int i = 0; i < slaves_needed && fds_ready_cant > 0; i++) {
