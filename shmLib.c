@@ -55,6 +55,7 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     if (oflag & O_CREAT) {
         if (ftruncate(shm->fd, SHM_SIZE) == -1) {
             perror("Error: Failed to set shared memory size");
+            shm_unlink(shm->name);
             close(shm->fd);
             free(shm->name);
             free(shm);
@@ -65,6 +66,7 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     shm->start = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm->fd, 0);
      if (shm->start == MAP_FAILED) {
         perror("Error: Memory mapping failed");
+        shm_unlink(shm->name);
         close(shm->fd);
         free(shm->name);
         free(shm);
@@ -74,6 +76,7 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     shm->dataAvailable = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 0);
    if  (shm->dataAvailable == SEM_FAILED) {
         perror("Error: Failed to open data availability semaphore");
+        shm_unlink(shm->name);
         munmap(shm->start, SHM_SIZE);
         close(shm->fd);
         free(shm->name);
@@ -85,6 +88,8 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
     if (shm->mutex == SEM_FAILED) {
         perror("Error: Failed to open mutex semaphore");
         sem_close(shm->dataAvailable);
+         shm_unlink(shm->name);
+        sem_unlink(SEM_NAME_DATA_AVAILABLE); 
         munmap(shm->start, SHM_SIZE);
         close(shm->fd);
         free(shm->name);
@@ -105,10 +110,7 @@ sharedMemoryADT getShm(const char *name, int oflag, mode_t mode) {
 
 size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) {
     size_t bytesWritten = 0;
-   // char buffer2[1000];
     sem_wait(segment->mutex);
- // BUFFERbuffbytes Written z< bufferSize     
-  // buffer2[bytesWritten] = buffer[bytesWritten];
 
     while (bytesWritten <= bufferSize && segment->writeOffset < SHM_SIZE) {
         char byte = buffer[bytesWritten++];
@@ -118,7 +120,6 @@ size_t writeShm(const char *buffer, sharedMemoryADT segment, size_t bufferSize) 
             break;
         }
     }
-    //fprintf(stderr,"BytesWritten %d\n", bytesWritten);
     if(!(segment->writeOffset < SHM_SIZE)){
         perror("No more memory in shared memory");
         exit(1);
@@ -138,11 +139,8 @@ size_t readShm(char *buffer, sharedMemoryADT segment, size_t bufferSize) {
     sem_wait(segment->mutex);
     
   
-    //segment->start[SHM_SIZE-1] = 0;
-   // printf("%s",  segment->start);
     while (bytesRead < bufferSize && segment->readOffset < SHM_SIZE) {
         char byte = segment->start[segment->readOffset++];
-        ///segment->readOffset;
         buffer[bytesRead] = byte;
         if (byte == END_OF_READ) {
             buffer[bytesRead++] = 0;
@@ -150,14 +148,11 @@ size_t readShm(char *buffer, sharedMemoryADT segment, size_t bufferSize) {
         }
         bytesRead++;
     }
-    //fprintf(stderr,"BytesRead%d\n", bytesRead);
 
     if(!(segment->readOffset < SHM_SIZE)){
         perror("No more memory in shared memory");
         exit(1);
     }
-
-    //printf("What i read %s cant bytes %ld\n", buffer, bytesRead);
     sem_post(segment->mutex);
     return bytesRead;
 }
@@ -193,6 +188,3 @@ void closeShm(sharedMemoryADT segment) {
     free(segment);
     segment = NULL;
 }
-
-
-

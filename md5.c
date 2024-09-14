@@ -119,32 +119,55 @@ static void resend_files_to_slave(int * files_sent, int cant_to_send, int childs
     }
 }
 
+
+static void cleanResources(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_needed, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+    fclose(file);
+    close(ans_fd);
+    closeShm(shm);
+    for(int i=0; i<slaves_needed; i++){
+        close_fd(childs_pipe_fds_read[i]);
+        close_fd(childs_pipe_fds_write[i]);
+    }
+    while(slaves_needed > 0){
+        if(wait(NULL) == -1){
+            perror("Wait");
+        }
+        slaves_needed--;
+    }
+}
+
 int main(int argc, char *argv[]){
     if(argc <= 1){
         perror("Error: No input files specified.\nUsage: ./md5 <file1> [file2 ... fileN]\n");
         return ERROR;
     }
     if(setvbuf(stdout, NULL, _IONBF, 0)!= 0){
-        perror("Failed to disable buffering for stdout");
+        perror("Error: Failed to disable buffering for stdout");
         return ERROR;
     }  
 
     sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
+    if(shm == NULL){
+        perror("Error: Could not create shared memory");
+        return ERROR;
+    }
     printf("%s\n", SHM_NAME);  
     sleep(2);
     unlinkShm(shm); 
 
     int ans_fd = open("resultado.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
     if (ans_fd == -1) {
-        perror("open");
-        return 1;
+        closeShm(shm);
+        perror("Error: Could not open file to store md5 answers.");
+        return ERROR;
     }
   
     FILE *file = fdopen(ans_fd, "w");
     if (file == NULL) {
-        perror("fdopen");
+        perror("Error: Failed to open file stream for writing");
+        closeShm(shm);
         close(ans_fd);
-        exit(EXIT_FAILURE);
+        return ERROR;
     }
 
 
@@ -242,23 +265,7 @@ int main(int argc, char *argv[]){
     writeShm(EOF_BUFF, shm, 0);    
     
     fflush(file);
-    fclose(file);
-    close(ans_fd);
-    closeShm(shm);
-
-
-    for(int i=0; i<slaves_needed; i++){
-        close_fd(childs_pipe_fds_read[i]);
-        close_fd(childs_pipe_fds_write[i]);
-    }
-    int childs_left = slaves_needed;
-    while(childs_left){
-        if(wait(NULL) == -1){
-            perror("Wait");
-        }
-        childs_left--;
-    }
-
+   cleanResources(file, ans_fd,  shm,  slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
 }
 
