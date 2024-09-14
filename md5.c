@@ -25,12 +25,6 @@ static inline void close_both_fds(int pipe[2]){
     close_fd(pipe[PIPE_WRITE]);
 }
 
-// static inline void pipe_(int pipefd[2]){
-//     if (pipe(pipefd) == -1) {
-//             perror("pipe");
-//             exit(EXIT_FAILURE);
-//     }
-// }
 
 
 int count_newline_strlen(char *str, int * len) {
@@ -182,7 +176,7 @@ int main(int argc, char *argv[]){
     sleep(2);
     unlinkShm(shm); 
 
-    int ans_fd = open("resultado.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644); //@TODO CHECK
+    int ans_fd = open("resultado.txt", O_WRONLY | O_CREAT | O_TRUNC, MODE); 
     if (ans_fd == -1) {
         closeShm(shm);
         perror("Error: Could not open file to store md5 answers.");
@@ -309,8 +303,6 @@ int main(int argc, char *argv[]){
             } 
         }
     }
-
-  
     fflush(file);
    cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
