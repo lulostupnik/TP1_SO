@@ -24,10 +24,7 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer);
 ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t max_bytes);
 ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_size);
 void close_shm(shared_memory_adt segment);
-
-//Reads until END OF READ, or buffer_size or segment Size.
 void unlink_shm(shared_memory_adt segment);
-
 int write_to_fd_shm(shared_memory_adt segment, int fd);
 
 
