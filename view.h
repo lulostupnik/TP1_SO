@@ -12,12 +12,7 @@
 #include <errno.h>
 #include <semaphore.h>
 
-#define SHM_SIZE 4096
-#define BUFFER_SIZE 256
-#define MD5_LENGTH 32
-
-
-
+#define BUFFER_SIZE_VIEW (MAX_SLAVE_RESPONSE_LENGHT * 3) 
 
 
 #endif

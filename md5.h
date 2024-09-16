@@ -6,6 +6,7 @@
 #include <string.h>
  #include <sys/wait.h>
 #include "shm_lib.h"
+#include "slave.h"
 
 
 
@@ -16,8 +17,8 @@
 
     #define FILES_PER_SLAVE 2
     #define CANT_SLAVES 10
-    
-
+    #define SHM_NAME "md5_app_shm"
+    #define SHM_OPEN_TIME 2
 
 #endif
 
