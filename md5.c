@@ -284,7 +284,7 @@ static inline int send_file_to_slave ( int fd, char * buff )
 {
 	int len = strlen ( buff );
 
-	if ( len >= MAX_PATH_LENGTH ) {
+	if ( len >= PATH_MAX ) {
 		perror ( "Error: File path is longer than max" );
 		return ERROR;
 	}
