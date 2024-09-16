@@ -3,7 +3,7 @@
 
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
+#include <sys/stat.h> 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,7 +25,7 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t max_bytes);
 ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_size);
 void close_shm(shared_memory_adt segment);
 
-//Reads until END OF READ, or buffer_size or segment Size.  
+//Reads until END OF READ, or buffer_size or segment Size.
 void unlink_shm(shared_memory_adt segment);
 
 int write_to_fd_shm(shared_memory_adt segment, int fd);
