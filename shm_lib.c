@@ -21,8 +21,7 @@ typedef struct shared_memory_cdt {
     int fd;
     size_t size;
     int is_writer;
-    size_t read_offset; 
-    size_t write_offset; 
+    size_t offset; 
     sem_t *data_available;
     sem_t *mutex; 
 } shared_memory_cdt;
@@ -106,8 +105,8 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
     }
 
     shm->size = SHM_SIZE;
-    shm->read_offset = 0;
-    shm->write_offset = 0;
+
+    shm->offset = 0;
 
 
     return shm;
@@ -125,15 +124,15 @@ ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_s
     size_t bytes_written = 0;
     sem_wait(segment->mutex);
 
-    while (bytes_written <= buffer_size && segment->write_offset < SHM_SIZE) {
+    while (bytes_written <= buffer_size && segment->offset < SHM_SIZE) {
         char byte = buffer[bytes_written++];
         
-        segment->start[segment->write_offset++] = byte;
+        segment->start[segment->offset++] = byte;
         if (byte == END_OF_READ) {
             break;
         }
     }
-    if(!(segment->write_offset < SHM_SIZE)){
+    if(!(segment->offset < SHM_SIZE)){
         perror("No more memory in shared memory");
         return -1;
     }
@@ -156,8 +155,8 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
     sem_wait(segment->mutex);
     
   
-    while (bytes_read < buffer_size && segment->read_offset < SHM_SIZE) {
-        char byte = segment->start[segment->read_offset++];
+    while (bytes_read < buffer_size && segment->offset < SHM_SIZE) {
+        char byte = segment->start[segment->offset++];
         buffer[bytes_read] = byte;
         if (byte == END_OF_READ) {
             buffer[bytes_read++] = 0;
@@ -166,7 +165,7 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
         bytes_read++;
     }
 
-    if(!(segment->read_offset < SHM_SIZE)){
+    if(!(segment->offset < SHM_SIZE)){
         perror("No more memory in shared memory");
         return -1;
     }
