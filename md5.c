@@ -107,6 +107,7 @@ static inline void create_slaves ( int slaves_needed, int * highest_read_fd, int
 
 		if ( pid == -1 ) {
 			perror ( "Error: could not fork" );
+			clean_resources( NULL, NULL, i-1, i-1, pipe_hash_to_master, pipe_path_to_slave );
 			exit ( EXIT_FAILURE );
 		}
 
@@ -123,12 +124,15 @@ static inline void create_slave_pipes ( int pipefd_parent_write[], int pipefd_pa
 {
 	if ( pipe ( pipefd_parent_write ) == -1 ) {
 		perror ( "Error: Could not create pipe for slave\n" );
+		clean_resources (NULL, NULL, i-1, i-1, pipe_hash_to_master, pipe_path_to_slave);
 		exit ( EXIT_FAILURE );
 	}
 
 	pipe_path_to_slave[i] = pipefd_parent_write[PIPE_WRITE];
 
 	if ( pipe ( pipefd_parent_read ) == -1 ) {
+		close_both_fds ( pipefd_parent_write );
+		clean_resources ( NULL, NULL, i-1, i-1, pipe_hash_to_master, pipe_path_to_slave );
 		perror ( "Error: Could not create pipe for slave\n" );
 		exit ( EXIT_FAILURE );
 	}
@@ -147,6 +151,7 @@ static inline void execute_slave ( int i, int pipe_hash_to_master[], int pipe_pa
 	char *const envp_[] = {NULL};
 
 	if ( set_up_slave ( i, pipe_hash_to_master, pipe_path_to_slave, pipefd_parent_read, pipefd_parent_write ) != 0 ) {
+		clean_resources(NULL, NULL, i, i-1, pipe_hash_to_master, pipe_path_to_slave);
 		exit ( EXIT_FAILURE );
 	}
 
@@ -322,15 +327,20 @@ static inline void close_both_fds ( int pipe[2] )
 
 static void clean_resources ( FILE * file,  shared_memory_adt shm, int slaves_to_close_fd, int childs_to_wait, int pipe_hash_to_master[], int pipe_path_to_slave[] )
 {
-	char EOF_BUFF[1] = {'\0'};
-
-	if ( write_shm ( EOF_BUFF, shm, 0 ) == -1 ) {
-		fprintf ( stderr, "Error: Could not write in shared memory\n" );
-	}
+	if ( shm != NULL ){
+		char EOF_BUFF[1] = {'\0'};
+		if ( write_shm ( EOF_BUFF, shm, 0 ) == -1 ) {
+			fprintf ( stderr, "Error: Could not write in shared memory\n" );
+		}
 
 	close_shm ( shm );
-	fflush ( file );
-	fclose ( file );
+	}
+
+	if( file != NULL ){
+		fflush ( file );
+		fclose ( file );
+	}
+
 
 	for ( int i = 0; i < slaves_to_close_fd; i++ ) {
 		close_fd ( pipe_hash_to_master[i] );
