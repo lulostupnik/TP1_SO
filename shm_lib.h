@@ -12,6 +12,7 @@
 #include <semaphore.h>
 #include <stdbool.h>
 
+
 #define SHM_SIZE 4096
 #define END_OF_READ '\0'
 
@@ -28,5 +29,7 @@ void close_shm(shared_memory_adt segment);
 void unlink_shm(shared_memory_adt segment);
 
 int write_to_fd_shm(shared_memory_adt segment, int fd);
+
+
 
 #endif

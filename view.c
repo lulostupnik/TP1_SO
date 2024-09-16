@@ -35,8 +35,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+
+    
+
     while (1) {
-        
+      
         ssize_t bytes_read = read_shm(buffer, segment, BUFFER_SIZE);
         
         if ( bytes_read == 1 || bytes_read == -1) {

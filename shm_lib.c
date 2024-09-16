@@ -10,7 +10,7 @@
 #include "shm_lib.h"
 
 #define SEM_NAME_DATA_AVAILABLE "/data_available_semaphore"
-#define SEM_NAME_MUTEX "/mutex"
+//#define SEM_NAME_MUTEX "/mutex"
 #define ERROR 1
 #define SHM_OPEN_MODE 0666
 #define SEM_OPEN_MODE 0644
@@ -24,7 +24,7 @@ typedef struct shared_memory_cdt {
     int is_writer;
     size_t offset; 
     sem_t *data_available;
-    sem_t *mutex; 
+   // sem_t *mutex; 
 } shared_memory_cdt;
 
 
@@ -92,18 +92,18 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
         return NULL;
     }
 
-    shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, SEM_OPEN_MODE, 1); 
-    if (shm->mutex == SEM_FAILED) {
-        perror("Error: Failed to open mutex semaphore");
-        sem_close(shm->data_available);
-        shm_unlink(shm->name);
-        sem_unlink(SEM_NAME_DATA_AVAILABLE); 
-        munmap(shm->start, SHM_SIZE);
-        close(shm->fd);
-        free(shm->name);
-        free(shm);
-        return NULL;
-    }
+    // shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, SEM_OPEN_MODE, 1); 
+    // if (shm->mutex == SEM_FAILED) {
+    //     perror("Error: Failed to open mutex semaphore");
+    //     sem_close(shm->data_available);
+    //     shm_unlink(shm->name);
+    //     sem_unlink(SEM_NAME_DATA_AVAILABLE); 
+    //     munmap(shm->start, SHM_SIZE);
+    //     close(shm->fd);
+    //     free(shm->name);
+    //     free(shm);
+    //     return NULL;
+    // }
 
     shm->size = SHM_SIZE;
     shm->offset = 0;
@@ -120,7 +120,7 @@ ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_s
     }
 
     size_t bytes_written = 0;
-    sem_wait(segment->mutex);
+    //sem_wait(segment->mutex);
 
     while (bytes_written <= buffer_size && segment->offset < SHM_SIZE) {
         char byte = buffer[bytes_written++];
@@ -136,7 +136,7 @@ ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_s
     }
     
     
-    sem_post(segment->mutex);
+    //sem_post(segment->mutex);
     sem_post(segment->data_available);
     return bytes_written;
 }
@@ -150,7 +150,7 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
     size_t bytes_read = 0;
    
     sem_wait(segment->data_available);
-    sem_wait(segment->mutex);
+    //sem_wait(segment->mutex);
     
   
     while (bytes_read < buffer_size && segment->offset < SHM_SIZE) {
@@ -167,7 +167,7 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
         perror("No more memory in shared memory");
         return -1;
     }
-    sem_post(segment->mutex);
+    //sem_post(segment->mutex);
     return bytes_read;
 }
 
@@ -175,15 +175,15 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
 
 void unlink_shm(shared_memory_adt segment){
     sem_unlink(SEM_NAME_DATA_AVAILABLE); 
-    sem_unlink(SEM_NAME_MUTEX);
+    //sem_unlink(SEM_NAME_MUTEX);
     shm_unlink(segment->name);
 }
 
 
 void close_shm(shared_memory_adt segment) {
-    if (sem_close(segment->mutex) == -1) {
-        perror("Error: Failed to close mutex semaphore");
-    }
+    // if (sem_close(segment->mutex) == -1) {
+    //     perror("Error: Failed to close mutex semaphore");
+    // }
     if (sem_close(segment->data_available) == -1) {
         perror("Error: Failed to close data_available semaphore");
     }

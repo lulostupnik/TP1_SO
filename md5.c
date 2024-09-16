@@ -20,6 +20,7 @@ static inline void close_fd(int fd){
     }
 }
 
+
 static inline void close_both_fds(int pipe[2]){
     close_fd(pipe[PIPE_READ]);
     close_fd(pipe[PIPE_WRITE]);
@@ -77,7 +78,7 @@ static int set_up_slave(int slave_num, int childs_pipe_fds_read[], int childs_pi
             int flag = 0;
             for(int j=0;j<slave_num ; j++){
                 close_fd(childs_pipe_fds_read[j]);
-                close_fd(childs_pipe_fds_write[j]);  //En los hijos se quedaban abiertos los FDS.  Checkear
+                close_fd(childs_pipe_fds_write[j]);  
             }
 
             //Como hijo pongo mi STDOUT como el pipe en donde lee el padre y cierro ambos FDS
@@ -111,7 +112,6 @@ static int resend_files_to_slave(int * files_sent, int cant_to_send, int childs_
             if(send_file(childs_pipe_fds_write[slave_index], argv[1+(*files_sent)++]) != 0){
                 return ERROR;
             }
-            
         cant_to_send--;
     }
     return 0;
@@ -136,6 +136,20 @@ static void clean_resources_pipe(FILE * file, shared_memory_adt shm, int slaves_
 
         }
     }
+}
+
+
+static void execute_child(int i, int childs_pipe_fds_read[], int childs_pipe_fds_write[], int pipefd_parent_read[], int pipefd_parent_write[]){
+    const char *pathname = "./slave";
+    char *const argv_[] = { "./slave", NULL };  
+    char *const envp_[] ={NULL};
+
+    if(set_up_slave(i, childs_pipe_fds_read, childs_pipe_fds_write, pipefd_parent_read, pipefd_parent_write) != 0){
+        exit(EXIT_FAILURE); //@TODO deberia liberar algo?/ algo mas ?
+    }
+    execve(pathname, argv_, envp_);
+    perror("Error: Could not excecute ./slave");
+    exit(EXIT_FAILURE);  //@todo deberia liberar algo?
 }
 
 
@@ -186,9 +200,6 @@ int main(int argc, char *argv[]){
 
 
     pid_t pid;
-    const char *pathname = "./slave";
-    char *const argv_[] = { "./slave", NULL };  
-    char *const envp_[] ={NULL};
 
     int childs_pipe_fds_write[CANT_SLAVES] = {}; // aca el master escribe
     int childs_pipe_fds_read[CANT_SLAVES] = {};
@@ -232,12 +243,7 @@ int main(int argc, char *argv[]){
         }
 
         if (pid == 0) {
-            if(set_up_slave(i, childs_pipe_fds_read, childs_pipe_fds_write, pipefd_parent_read, pipefd_parent_write) != 0){
-                return ERROR; //@TODO deberia liberar algo?/ algo mas ?
-            }
-            execve(pathname, argv_, envp_);
-            perror("Error: Could not excecute ./slave");
-            return ERROR;  //@todo deberia liberar algo?
+            execute_child(i, childs_pipe_fds_read, childs_pipe_fds_write, pipefd_parent_read, pipefd_parent_write);
         }
         //Soy el padre:
         close_fd(pipefd_parent_read[PIPE_WRITE]);
@@ -265,6 +271,8 @@ int main(int argc, char *argv[]){
     fd_set readfds, temp_select_set;
     select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
     
+
+
     while (files_read < argc - 1) {
         temp_select_set = readfds;
         int fds_ready_cant = select(highest_read_fd + 1, &temp_select_set, NULL, NULL, NULL);
