@@ -118,12 +118,12 @@ static int resend_files_to_slave(int * files_sent, int cant_to_send, int childs_
 }
 
 //Todo checkear
-static void clean_resources_pipe(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_to_close_fd_read, int slaves_to_close_fd_write, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+static void clean_resources_pipe(FILE * file, int ans_fd, shared_memory_adt shm, int slaves_to_close_fd_read, int slaves_to_close_fd_write, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
     close(ans_fd);
     char EOF_BUFF[1] = {'\0'};
-    writeShm(EOF_BUFF, shm, 0); 
-    closeShm(shm);
+    write_shm(EOF_BUFF, shm, 0); 
+    close_shm(shm);
 
     int max = MAX(slaves_to_close_fd_read, slaves_to_close_fd_write);
 
@@ -139,12 +139,12 @@ static void clean_resources_pipe(FILE * file, int ans_fd, sharedMemoryADT shm, i
 }
 
 
-static void cleanResources(FILE * file, int ans_fd, sharedMemoryADT shm, int slaves_to_close_fd, int childs_to_wait, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+static void clean_resources(FILE * file, int ans_fd, shared_memory_adt shm, int slaves_to_close_fd, int childs_to_wait, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
     close(ans_fd);
     char EOF_BUFF[1] = {'\0'};
-    writeShm(EOF_BUFF, shm, 0);
-    closeShm(shm);
+    write_shm(EOF_BUFF, shm, 0);
+    close_shm(shm);
     for(int i=0; i<slaves_to_close_fd; i++){
         close_fd(childs_pipe_fds_read[i]);
         close_fd(childs_pipe_fds_write[i]);
@@ -159,7 +159,7 @@ static void cleanResources(FILE * file, int ans_fd, sharedMemoryADT shm, int sla
 
 int main(int argc, char *argv[]){
     if(argc <= 1){
-        perror("Error: No input files specified.\nUsage: ./md5 <file1> [file2 ... fileN]\n");
+        perror("Error: No input files specified.\n_usage: ./md5 <file1> [file2 ... file_n]\n");
         return ERROR;
     }
     if(setvbuf(stdout, NULL, _IONBF, 0)!= 0){
@@ -167,18 +167,18 @@ int main(int argc, char *argv[]){
         return ERROR;
     }  
 
-    sharedMemoryADT shm = getShm(SHM_NAME, O_CREAT | O_RDWR, MODE);
+    shared_memory_adt shm = get_shm(SHM_NAME, O_CREAT | O_RDWR, MODE);
     if(shm == NULL){
         perror("Error: Could not create shared memory");
         return ERROR;
     }
     printf("%s\n", SHM_NAME);  
     sleep(2);
-    unlinkShm(shm); 
+    unlink_shm(shm); 
 
     int ans_fd = open("resultado.txt", O_WRONLY | O_CREAT | O_TRUNC, MODE); 
     if (ans_fd == -1) {
-        closeShm(shm);
+        close_shm(shm);
         perror("Error: Could not open file to store md5 answers.");
         return ERROR;
     }
@@ -186,7 +186,7 @@ int main(int argc, char *argv[]){
     FILE *file = fdopen(ans_fd, "w");
     if (file == NULL) {
         perror("Error: Failed to open file stream for writing");
-        closeShm(shm);
+        close_shm(shm);
         close(ans_fd);
         return ERROR;
     }
@@ -234,7 +234,7 @@ int main(int argc, char *argv[]){
         pid = fork();
         if (pid == -1) {
             perror("Error: could not fork");
-            cleanResources(file, ans_fd, shm, i, i-1, childs_pipe_fds_read, childs_pipe_fds_write);
+            clean_resources(file, ans_fd, shm, i, i-1, childs_pipe_fds_read, childs_pipe_fds_write);
             return ERROR;
         }
 
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
             if(send_file(childs_pipe_fds_write[i],argv[1+files_sent++]) != 0){
                 perror("Error: File path is longer than max");
-                cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                 return ERROR;
             }
         } 
@@ -276,7 +276,7 @@ int main(int argc, char *argv[]){
         int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
             perror("Error: could not monitor fds from slaves pipe");
-            cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+            clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
             return ERROR;
         }
 
@@ -287,16 +287,16 @@ int main(int argc, char *argv[]){
                 
                 if(read_aux(childs_pipe_fds_read[i], string_from_fd) != 0){
                     fprintf(stderr,"Error: Could not read from fd %d\n", childs_pipe_fds_read[i]);
-                    cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                     return ERROR;
                 }
 
                 count = count_newline_strlen(string_from_fd, &buff_len);
                 files_read += count;
-                writeShm(string_from_fd, shm, buff_len);  //agregar checkeo dspues
+                write_shm(string_from_fd, shm, buff_len);  //agregar checkeo dspues
                 fprintf(file, "%s", string_from_fd); 
                 if(resend_files_to_slave(&files_sent, count, childs_pipe_fds_write, i, argc, argv) != 0){
-                    cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                     return ERROR;
                 }
                 fds_ready_cant--;
@@ -304,7 +304,7 @@ int main(int argc, char *argv[]){
         }
     }
     fflush(file);
-   cleanResources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+   clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
 }
 

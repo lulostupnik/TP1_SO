@@ -2,8 +2,8 @@
 // PVS-Studio Static Code Analyzer for C, C++ and C#: http://www.viva64.com
 #include "slave.h"
 
-#define MD5SUM_STRLEN_PLUS_NULL_TERMINATED 7
-#define MAX_COMMAND_LENGTH (MAX_PATH_LENGTH + MD5SUM_STRLEN_PLUS_NULL_TERMINATED ) // 7 = 6 de "md5sum " + 1 de \0
+#define MD5_sum_STRLEN_PLUS_NULL_TERMINATED 7
+#define MAX_COMMAND_LENGTH (MAX_PATH_LENGTH + MD5_sum_STRLEN_PLUS_NULL_TERMINATED ) // 7 = 6 de "md5sum " + 1 de \0
 #define MAX_PID_DIGITS 7
 #define MD5_OUT_LEN 32
 

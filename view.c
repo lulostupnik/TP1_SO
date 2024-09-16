@@ -1,7 +1,7 @@
 // This is a personal academic project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 #include "view.h"
-#include "shmLib.h"
+#include "shm_lib.h"
 #include <semaphore.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,11 +11,11 @@
 
 int main(int argc, char *argv[]) {
     char buffer[BUFFER_SIZE];
-    sharedMemoryADT segment;
+    shared_memory_adt segment;
     //setvbuf(stdin, NULL, _IONBF, 0);  // AVERIGUAR
     setvbuf(stdout, NULL, _IONBF, 0); 
     if (argc == 2) {
-        segment = getShm(argv[1],O_RDWR,0666);
+        segment = get_shm(argv[1],O_RDWR,0666);
     }else if(argc ==1){
     
         char * buffer_input;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         buffer_input[bytes-1] = 0;
-        segment = getShm(buffer_input, O_RDWR, 0666);
+        segment = get_shm(buffer_input, O_RDWR, 0666);
         free(buffer_input);
 
     } else {
@@ -38,9 +38,9 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         
-        size_t bytesRead = readShm(buffer, segment, BUFFER_SIZE);
+        size_t bytes_read = read_shm(buffer, segment, BUFFER_SIZE);
         
-        if ( bytesRead == 1) {
+        if ( bytes_read == 1) {
             break;  
            
         }
@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
 
 
     // Desmapear y cerrar la memoria compartida
-    closeShm(segment);
+    close_shm(segment);
 
 
 
