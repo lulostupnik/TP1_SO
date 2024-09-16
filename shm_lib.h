@@ -10,7 +10,7 @@
 #include <string.h>
 #include <errno.h>
 #include <semaphore.h>
-
+#include <stdbool.h>
 
 #define SHM_SIZE 4096
 #define END_OF_READ '\0'
@@ -19,9 +19,9 @@
 
 typedef struct shared_memory_cdt * shared_memory_adt;
 
-shared_memory_adt get_shm(const char *name, int oflag, mode_t mode);
-size_t read_shm(char *buffer, shared_memory_adt segment, size_t max_bytes);
-size_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_size);
+shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer);
+ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t max_bytes);
+ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_size);
 void close_shm(shared_memory_adt segment);
 
 //Reads until END OF READ, or buffer_size or segment Size.  

@@ -12,20 +12,24 @@
 #define SEM_NAME_DATA_AVAILABLE "/data_available_semaphore"
 #define SEM_NAME_MUTEX "/mutex"
 #define ERROR 1
+#define OPEN_MODE 0666
 
-
+//@TODO agregar mensajes de error al cerrar
 typedef struct shared_memory_cdt {
     char * name;
     char * start; 
     int fd;
     size_t size;
+    int is_writer;
     size_t read_offset; 
     size_t write_offset; 
     sem_t *data_available;
     sem_t *mutex; 
 } shared_memory_cdt;
 
-shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
+
+
+shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
     shared_memory_adt shm = malloc(sizeof(shared_memory_cdt));
     if (shm == NULL) {
         perror("Error: Memory allocation failed for shared_memory_cdt");
@@ -39,12 +43,15 @@ shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
         return NULL;
     }
 
+    shm->is_writer = is_writer;
     //Puede retornar error pero es por si hay semaforos/shm los cuales no queremos abiertos.
-    if (oflag & O_CREAT) {
+    if (is_creator) {
         unlink_shm(shm);
     }
+
+    int oflag = is_creator ? (O_RDWR|O_CREAT):(O_RDWR); 
     
-    shm->fd = shm_open(shm->name, oflag, mode);
+    shm->fd = shm_open(shm->name, oflag, OPEN_MODE);
     if (shm->fd == -1) {
         perror("Error: Failed to open shared memory");
         free(shm);
@@ -52,7 +59,7 @@ shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
     }
 
 
-    if (oflag & O_CREAT) {
+    if (is_creator) {
         if (ftruncate(shm->fd, SHM_SIZE) == -1) {
             perror("Error: Failed to set shared memory size");
             shm_unlink(shm->name);
@@ -63,8 +70,9 @@ shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
         }
     }
 
-    shm->start = mmap(0, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm->fd, 0);
-     if (shm->start == MAP_FAILED) {
+  
+    shm->start = mmap(0, SHM_SIZE, PROT_WRITE | PROT_READ, MAP_SHARED, shm->fd, 0);
+    if (shm->start == MAP_FAILED) {
         perror("Error: Memory mapping failed");
         shm_unlink(shm->name);
         close(shm->fd);
@@ -73,7 +81,7 @@ shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
         return NULL;
     }
 
-    shm->data_available = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 0);
+    shm->data_available = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 0);  //todo ese modo??
    if  (shm->data_available == SEM_FAILED) {
         perror("Error: Failed to open data availability semaphore");
         shm_unlink(shm->name);
@@ -84,11 +92,11 @@ shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
         return NULL;
     }
 
-    shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, 0644, 1);
+    shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, 0644, 1);  // //todo ese modo??
     if (shm->mutex == SEM_FAILED) {
         perror("Error: Failed to open mutex semaphore");
         sem_close(shm->data_available);
-         shm_unlink(shm->name);
+        shm_unlink(shm->name);
         sem_unlink(SEM_NAME_DATA_AVAILABLE); 
         munmap(shm->start, SHM_SIZE);
         close(shm->fd);
@@ -108,7 +116,12 @@ shared_memory_adt get_shm(const char *name, int oflag, mode_t mode) {
 
 
 
-size_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_size) {
+ssize_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_size) {
+    
+   if (segment == NULL || buffer == NULL || !(segment->is_writer)) {
+        return 0;
+    }
+
     size_t bytes_written = 0;
     sem_wait(segment->mutex);
 
@@ -122,7 +135,7 @@ size_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_si
     }
     if(!(segment->write_offset < SHM_SIZE)){
         perror("No more memory in shared memory");
-        exit(1); //Todo cambiar a un return
+        return -1;
     }
     
     
@@ -131,7 +144,11 @@ size_t write_shm(const char *buffer, shared_memory_adt segment, size_t buffer_si
     return bytes_written;
 }
 
-size_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
+ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
+    
+    if(segment == NULL || buffer == NULL || (segment->is_writer)){
+        return -1;
+    }
 
     size_t bytes_read = 0;
    
@@ -151,7 +168,7 @@ size_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
 
     if(!(segment->read_offset < SHM_SIZE)){
         perror("No more memory in shared memory");
-        exit(1);
+        return -1;
     }
     sem_post(segment->mutex);
     return bytes_read;

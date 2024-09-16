@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     //setvbuf(stdin, NULL, _IONBF, 0);  // AVERIGUAR
     setvbuf(stdout, NULL, _IONBF, 0); 
     if (argc == 2) {
-        segment = get_shm(argv[1],O_RDWR,0666);
+        segment = get_shm(argv[1],false,false);
     }else if(argc ==1){
     
         char * buffer_input;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         buffer_input[bytes-1] = 0;
-        segment = get_shm(buffer_input, O_RDWR, 0666);
+        segment = get_shm(buffer_input, false, false);
         free(buffer_input);
 
     } else {
@@ -38,9 +38,9 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         
-        size_t bytes_read = read_shm(buffer, segment, BUFFER_SIZE);
+        ssize_t bytes_read = read_shm(buffer, segment, BUFFER_SIZE);
         
-        if ( bytes_read == 1) {
+        if ( bytes_read == 1 || bytes_read == -1) {
             break;  
            
         }

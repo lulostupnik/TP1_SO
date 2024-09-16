@@ -167,7 +167,7 @@ int main(int argc, char *argv[]){
         return ERROR;
     }  
 
-    shared_memory_adt shm = get_shm(SHM_NAME, O_CREAT | O_RDWR, MODE);
+    shared_memory_adt shm = get_shm(SHM_NAME, true,true);
     if(shm == NULL){
         perror("Error: Could not create shared memory");
         return ERROR;
@@ -204,7 +204,7 @@ int main(int argc, char *argv[]){
     int pipefd_parent_write[2];
     int pipefd_parent_read[2];
 
-    fd_set readfds;
+  
 
     int slaves_needed = MIN(CANT_SLAVES, ((argc-1 + FILES_PER_SLAVE-1) / FILES_PER_SLAVE));
 
@@ -219,7 +219,7 @@ int main(int argc, char *argv[]){
 
         if(pipe(pipefd_parent_read) == -1){
             perror("Error: Could not create pipe for slave\n");
-            clean_resources_pipe(file, ans_fd, shm, i, i, childs_pipe_fds_read, childs_pipe_fds_write);
+            clean_resources_pipe(file, ans_fd, shm, i-1, i, childs_pipe_fds_read, childs_pipe_fds_write);
             return ERROR;
         }
         
@@ -269,11 +269,12 @@ int main(int argc, char *argv[]){
     //Me quedan archivos para mandar
     int files_read = 0;
     char string_from_fd[BUFFER_SIZE];
-
+    fd_set readfds, temp_select_set;
+    select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
+    
     while (files_read < argc - 1) {
-
-        select_function_setup(&readfds, slaves_needed, childs_pipe_fds_read);
-        int fds_ready_cant = select(highest_read_fd + 1, &readfds, NULL, NULL, NULL);
+        temp_select_set = readfds;
+        int fds_ready_cant = select(highest_read_fd + 1, &temp_select_set, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
             perror("Error: could not monitor fds from slaves pipe");
             clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
@@ -283,7 +284,7 @@ int main(int argc, char *argv[]){
         int buff_len = 0;
         int count = 0;
         for(int i = 0; i < slaves_needed && fds_ready_cant > 0; i++) {
-            if (FD_ISSET(childs_pipe_fds_read[i], &readfds)) {
+            if (FD_ISSET(childs_pipe_fds_read[i], &temp_select_set)) {
                 
                 if(read_aux(childs_pipe_fds_read[i], string_from_fd) != 0){
                     fprintf(stderr,"Error: Could not read from fd %d\n", childs_pipe_fds_read[i]);
@@ -293,7 +294,11 @@ int main(int argc, char *argv[]){
 
                 count = count_newline_strlen(string_from_fd, &buff_len);
                 files_read += count;
-                write_shm(string_from_fd, shm, buff_len);  //agregar checkeo dspues
+                if(write_shm(string_from_fd, shm, buff_len) == -1){
+                    fprintf(stderr,"Error: Could not write in shared memory\n");
+                    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    return ERROR;
+                }  
                 fprintf(file, "%s", string_from_fd); 
                 if(resend_files_to_slave(&files_sent, count, childs_pipe_fds_write, i, argc, argv) != 0){
                     clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
@@ -303,6 +308,8 @@ int main(int argc, char *argv[]){
             } 
         }
     }
+
+     
     fflush(file);
    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
