@@ -118,9 +118,9 @@ static int resend_files_to_slave(int * files_sent, int cant_to_send, int childs_
 }
 
 //Todo checkear
-static void clean_resources_pipe(FILE * file, int ans_fd, shared_memory_adt shm, int slaves_to_close_fd_read, int slaves_to_close_fd_write, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+static void clean_resources_pipe(FILE * file, shared_memory_adt shm, int slaves_to_close_fd_read, int slaves_to_close_fd_write, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
-    close(ans_fd);
+
     char EOF_BUFF[1] = {'\0'};
     write_shm(EOF_BUFF, shm, 0); 
     close_shm(shm);
@@ -139,9 +139,9 @@ static void clean_resources_pipe(FILE * file, int ans_fd, shared_memory_adt shm,
 }
 
 
-static void clean_resources(FILE * file, int ans_fd, shared_memory_adt shm, int slaves_to_close_fd, int childs_to_wait, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
+static void clean_resources(FILE * file,  shared_memory_adt shm, int slaves_to_close_fd, int childs_to_wait, int childs_pipe_fds_read[], int childs_pipe_fds_write[] ){
     fclose(file);
-    close(ans_fd);
+
     char EOF_BUFF[1] = {'\0'};
     write_shm(EOF_BUFF, shm, 0);
     close_shm(shm);
@@ -176,18 +176,11 @@ int main(int argc, char *argv[]){
     sleep(2);
     unlink_shm(shm); 
 
-    int ans_fd = open("resultado.txt", O_WRONLY | O_CREAT | O_TRUNC, MODE); 
-    if (ans_fd == -1) {
-        close_shm(shm);
-        perror("Error: Could not open file to store md5 answers.");
-        return ERROR;
-    }
   
-    FILE *file = fdopen(ans_fd, "w");
+    FILE *file = fopen("resultado.txt", "w");
     if (file == NULL) {
         perror("Error: Failed to open file stream for writing");
         close_shm(shm);
-        close(ans_fd);
         return ERROR;
     }
 
@@ -212,14 +205,14 @@ int main(int argc, char *argv[]){
         
         if(pipe(pipefd_parent_write) == -1){
             perror("Error: Could not create pipe for slave\n");
-            clean_resources_pipe(file, ans_fd, shm, i-1, i, childs_pipe_fds_read, childs_pipe_fds_write);
+            clean_resources_pipe(file, shm, i-1, i, childs_pipe_fds_read, childs_pipe_fds_write);
             return ERROR;
         }
         childs_pipe_fds_write[i] = pipefd_parent_write[PIPE_WRITE]; 
 
         if(pipe(pipefd_parent_read) == -1){
             perror("Error: Could not create pipe for slave\n");
-            clean_resources_pipe(file, ans_fd, shm, i-1, i, childs_pipe_fds_read, childs_pipe_fds_write);
+            clean_resources_pipe(file, shm, i-1, i, childs_pipe_fds_read, childs_pipe_fds_write);
             return ERROR;
         }
         
@@ -234,7 +227,7 @@ int main(int argc, char *argv[]){
         pid = fork();
         if (pid == -1) {
             perror("Error: could not fork");
-            clean_resources(file, ans_fd, shm, i, i-1, childs_pipe_fds_read, childs_pipe_fds_write);
+            clean_resources(file, shm, i, i-1, childs_pipe_fds_read, childs_pipe_fds_write);
             return ERROR;
         }
 
@@ -260,7 +253,7 @@ int main(int argc, char *argv[]){
         for(int j=0; j<FILES_PER_SLAVE && files_sent+1 < argc ; j++ ){
             if(send_file(childs_pipe_fds_write[i],argv[1+files_sent++]) != 0){
                 perror("Error: File path is longer than max");
-                clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                clean_resources(file,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                 return ERROR;
             }
         } 
@@ -277,7 +270,7 @@ int main(int argc, char *argv[]){
         int fds_ready_cant = select(highest_read_fd + 1, &temp_select_set, NULL, NULL, NULL);
         if (fds_ready_cant == -1) {
             perror("Error: could not monitor fds from slaves pipe");
-            clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+            clean_resources(file,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
             return ERROR;
         }
 
@@ -288,7 +281,7 @@ int main(int argc, char *argv[]){
                 
                 if(read_aux(childs_pipe_fds_read[i], string_from_fd) != 0){
                     fprintf(stderr,"Error: Could not read from fd %d\n", childs_pipe_fds_read[i]);
-                    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    clean_resources(file,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                     return ERROR;
                 }
 
@@ -296,12 +289,12 @@ int main(int argc, char *argv[]){
                 files_read += count;
                 if(write_shm(string_from_fd, shm, buff_len) == -1){
                     fprintf(stderr,"Error: Could not write in shared memory\n");
-                    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    clean_resources(file,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                     return ERROR;
                 }  
                 fprintf(file, "%s", string_from_fd); 
                 if(resend_files_to_slave(&files_sent, count, childs_pipe_fds_write, i, argc, argv) != 0){
-                    clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+                    clean_resources(file,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
                     return ERROR;
                 }
                 fds_ready_cant--;
@@ -311,7 +304,7 @@ int main(int argc, char *argv[]){
 
      
     fflush(file);
-   clean_resources(file, ans_fd,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
+   clean_resources(file,  shm,  slaves_needed, slaves_needed,  childs_pipe_fds_read,  childs_pipe_fds_write );
    return 0;
 }
 
