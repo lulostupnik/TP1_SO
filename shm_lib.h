@@ -11,9 +11,10 @@
 #include <errno.h>
 #include <semaphore.h>
 #include <stdbool.h>
+#include "slave.h"
 
 
-#define SHM_SIZE 4096
+#define SHM_SIZE (MAX_MD5_OUT_LEN*100)
 #define END_OF_READ '\0'
 
 #define LAST_USER 1
