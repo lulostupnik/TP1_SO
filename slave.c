@@ -15,7 +15,7 @@ int main()
     ssize_t bytes_read = 0;
     char command[MAX_COMMAND_LENGTH];
     FILE *fp;
-    char response[MD5_OUT_LEN + MAX_PATH_LENGTH + 2]; // 2 = 1 espacio + 1 \0
+    char response[MD5_OUT_LEN + MAX_PATH_LENGTH + 3]; // 3 = 2 espacios + 1 \0
 
     while ((bytes_read = getline(&path, &len, stdin)) != -1)
     {

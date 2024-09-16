@@ -174,9 +174,7 @@ ssize_t read_shm(char *buffer, shared_memory_adt segment, size_t buffer_size) {
 
 
 void unlink_shm(shared_memory_adt segment){
-    //DEBERIA HABER UN FLAG EN LA SHARED MEMORY PORQUE SOLO HAY QUE UNLINKEAR UNA VEZ
-// Una de las dos veces da error !
-    sem_unlink(SEM_NAME_DATA_AVAILABLE); //@todo NO UNLINKEAR DOS VECES ERRO CONCEPTUAL.
+    sem_unlink(SEM_NAME_DATA_AVAILABLE); 
     sem_unlink(SEM_NAME_MUTEX);
     shm_unlink(segment->name);
 }

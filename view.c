@@ -12,12 +12,12 @@
 int main(int argc, char *argv[]) {
     char buffer[BUFFER_SIZE];
     shared_memory_adt segment;
-    //setvbuf(stdin, NULL, _IONBF, 0);  // AVERIGUAR
-    setvbuf(stdout, NULL, _IONBF, 0); 
+    setvbuf(stdout, NULL, _IONBF, 0);
+
     if (argc == 2) {
         segment = get_shm(argv[1],false,false);
     }else if(argc ==1){
-    
+        setvbuf(stdin, NULL, _IONBF, 0);  
         char * buffer_input;
         size_t buffer_size = BUFFER_SIZE;
         int bytes = getline(&buffer_input, &buffer_size, stdin);
@@ -34,7 +34,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Wrong Usage\n"); //cambiar
         exit(EXIT_FAILURE);
     }
-    //printf("Segment view %p\n", segment);
 
     while (1) {
         
@@ -48,12 +47,6 @@ int main(int argc, char *argv[]) {
         printf("%s", buffer); // No \n porque el buffer ya tiene el salto de línea
     }
     
-
-
-    // Desmapear y cerrar la memoria compartida
     close_shm(segment);
-
-
-
     return 0;
 }
