@@ -12,7 +12,8 @@
 #define SEM_NAME_DATA_AVAILABLE "/data_available_semaphore"
 #define SEM_NAME_MUTEX "/mutex"
 #define ERROR 1
-#define OPEN_MODE 0666
+#define SHM_OPEN_MODE 0666
+#define SEM_OPEN_MODE 0644
 
 //@TODO agregar mensajes de error al cerrar
 typedef struct shared_memory_cdt {
@@ -50,7 +51,7 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
 
     int oflag = is_creator ? (O_RDWR|O_CREAT):(O_RDWR); 
     
-    shm->fd = shm_open(shm->name, oflag, OPEN_MODE);
+    shm->fd = shm_open(shm->name, oflag, SHM_OPEN_MODE);
     if (shm->fd == -1) {
         perror("Error: Failed to open shared memory");
         free(shm);
@@ -80,7 +81,7 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
         return NULL;
     }
 
-    shm->data_available = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, 0644, 0);  //todo ese modo??
+   shm->data_available = sem_open(SEM_NAME_DATA_AVAILABLE, O_CREAT, SEM_OPEN_MODE, 0); 
    if  (shm->data_available == SEM_FAILED) {
         perror("Error: Failed to open data availability semaphore");
         shm_unlink(shm->name);
@@ -91,7 +92,7 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
         return NULL;
     }
 
-    shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, 0644, 1);  // //todo ese modo??
+    shm->mutex = sem_open(SEM_NAME_MUTEX, O_CREAT, SEM_OPEN_MODE, 1); 
     if (shm->mutex == SEM_FAILED) {
         perror("Error: Failed to open mutex semaphore");
         sem_close(shm->data_available);
@@ -105,10 +106,7 @@ shared_memory_adt get_shm(const char *name, bool is_creator, bool is_writer) {
     }
 
     shm->size = SHM_SIZE;
-
     shm->offset = 0;
-
-
     return shm;
 }
 
